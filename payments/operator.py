@@ -23,3 +23,4 @@ def payment_check():
          DetailScheduleReceiptAPIView().check_payment_status()
 
     payment_scheduler.start()
+
