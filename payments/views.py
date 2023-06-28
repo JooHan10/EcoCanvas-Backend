@@ -6,9 +6,8 @@ from users.models import User
 from rest_framework import status
 from iamport import Iamport
 from config import settings
-import requests, json
+import requests
 from django.http import JsonResponse
-from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
 
 
@@ -31,11 +30,26 @@ class RegisterCustomerView(APIView):
         작성일 : 2023.06.08
         작성내용 : 유저의 카드 정보 등록.
         업데이트날짜 : 2023.06.13
-        '''
+        ''' 
         serializer = RegisterSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
+            response = iamport.customer_create(serializer.data)
+            get_card_number = response.get('card_number')
+            get_customer_uid = response.get('customer_uid')
+            get_user = self.context['request'].user
+            exist_card_number = RegisterPayment.objects.filter(card_number=get_card_number, user=get_user)
+        
+            if exist_card_number:
+                raise serializer.ValidationError("이미 등록된 카드 번호입니다.")
+            else:
+                RegisterPayment.objects.create(
+                    user=get_user,
+                    card_number=get_card_number,
+                    customer_uid=get_customer_uid            
+                )               
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request):
@@ -92,7 +106,7 @@ class CreatePaymentScheduleView(APIView):
             response['status'] = receipt.status
             receipt_data_list.append(response)
             
-        return JsonResponse(receipt_data_list, safe=False)
+        return JsonResponse(receipt_data_list, safe=False, status=status.HTTP_200_OK)
     
 class ReceiptAPIView(APIView):
     
@@ -136,7 +150,7 @@ class ReceiptAPIView(APIView):
                 'product' : receipt.product.product_name,
                 'status' : receipt.status
             })
-        return JsonResponse(receipt_data, safe=False)
+        return JsonResponse(receipt_data, safe=False, status=status.HTTP_200_OK)
     
 class DetailReciptAPIView(APIView):
     
@@ -159,7 +173,7 @@ class DetailReciptAPIView(APIView):
         }
         response = requests.get(receipt_url, params, headers=token)
         response_data =response.json()
-        return JsonResponse(response_data)
+        return JsonResponse(response_data, status=status.HTTP_200_OK)
     
     def post(self, request, pk):
         '''
@@ -171,7 +185,7 @@ class DetailReciptAPIView(APIView):
         receipt = Payment.objects.get(pk=pk)
         receipt.status = "3"
         receipt.save()
-        return JsonResponse({'message': '결제취소 요청이 접수되었습니다.'})
+        return JsonResponse({'message': '결제취소 요청이 접수되었습니다.'}, status=status.HTTP_200_OK)
        
         
 class DetailScheduleReceiptAPIView(APIView):
@@ -190,7 +204,7 @@ class DetailScheduleReceiptAPIView(APIView):
         response = requests.get(receipt_url, headers=token)
         receipt_data = response.json()
         answer = receipt_data.get('message')
-        return Response(answer)
+        return Response(answer, status=status.HTTP_200_OK)
     
     def post(self, request, pk):
         '''
@@ -213,9 +227,9 @@ class DetailScheduleReceiptAPIView(APIView):
         if response.status_code == 200 :
             receipt.status = 1
             receipt.save()            
-            return JsonResponse({"message":"예약 결제 취소 완료"})
+            return JsonResponse({"message":"예약 결제 취소 완료"}, status=status.HTTP_200_OK)
         else :
-            return JsonResponse({"message":"결제 취소에 실패하였습니다."})
+            return JsonResponse({"message":"결제 취소에 실패하였습니다."},status=status.HTTP_400_BAD_REQUEST)
         
     def check_payment_status(self):
         payments = Payment.objects.filter(campaign__isnull=False, status="0")
@@ -256,10 +270,10 @@ class RefundpaymentsAPIView(APIView):
             # 결제 취소 성공
             receipt.status = "4"
             receipt.save()
-            return JsonResponse({'message': '결제가 취소되었습니다.'})
+            return JsonResponse({'message': '결제가 취소되었습니다.'}, status=status.HTTP_200_OK)
         else:
             # 결제 취소 실패
-            return JsonResponse({'message': '결제 취소에 실패했습니다.'}, status=400)
+            return JsonResponse({'message': '결제 취소에 실패했습니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
 class ScheduleReceiptAPIView(APIView):
     
@@ -286,4 +300,4 @@ class ScheduleReceiptAPIView(APIView):
             })
             
             
-        return Response({'results': receipt_data, 'count':len(receipts)})
+        return Response({'results': receipt_data, 'count':len(receipts)}, status=status.HTTP_200_OK)

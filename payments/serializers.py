@@ -45,33 +45,23 @@ class RegisterSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
     
     def create(self, data):
-        iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
+        
         get_expiry = data.get('expiry_at')
         birth = data.get('birth')
+        card_number = data.get('card_number')
         pwd_2digit = data.get('pwd_2digit')
         email = self.context['request'].user.email
         customer_uid = f"{email}_{int(time.time())}"
-        response = iamport.customer_create(
-            customer_uid=customer_uid,
-            card_number=data['card_number'],
-            expiry=get_expiry,
-            birth=birth,
-            pg='nice',
-            pwd_2digit=pwd_2digit,
-        )
-        get_card_number = response.get('card_number')
-        get_customer_uid = response.get('customer_uid')
-        get_user = self.context['request'].user
-        exist_card_number = RegisterPayment.objects.filter(card_number=get_card_number, user=get_user)
+        response ={
+            'customer_uid':customer_uid,
+            'card_number':card_number,
+            'expiry':get_expiry,
+            'birth':birth,
+            'pg':'nice',
+            'pwd_2digit':pwd_2digit,
+        }
+        return response
         
-        if exist_card_number:
-            raise serializers.ValidationError("이미 등록된 카드 번호입니다.")
-        payment = RegisterPayment.objects.create(
-            user=get_user,
-            card_number=get_card_number,
-            customer_uid=get_customer_uid            
-        )   
-        return payment
     
 
 class PaymentScheduleSerializer(serializers.ModelSerializer):
