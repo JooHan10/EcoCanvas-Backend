@@ -1,5 +1,5 @@
 from rest_framework.generics import get_object_or_404
-from rest_framework import status, permissions
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import ShopProduct, ShopCategory, ShopOrder, RestockNotification
@@ -125,7 +125,7 @@ class ProductDetailViewAPI(APIView):
     작성자:장소은
     내용: 카테고리별 상품 상세 조회/ 수정 / 삭제 (일반유저는 조회만)
     작성일: 2023.06.06
-    업데이트일: 2023.06.27
+    업데이트일: 2023.06.
     '''
     permission_classes = [IsAuthenticatedOrReadOnly]
 
