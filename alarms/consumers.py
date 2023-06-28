@@ -23,7 +23,6 @@ class ChatNotificationConsumer(WebsocketConsumer):
         pass
 
     def send_admin_notification(self, event):
-        print("tq")
         message = event['message']
         self.send(text_data=message)
 

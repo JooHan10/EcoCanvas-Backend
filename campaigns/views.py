@@ -26,9 +26,9 @@ from campaigns.serializers import (
 class CampaignView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 뷰 입니다.
+    내용 : 캠페인 View 입니다.
     전체 캠페인 리스트를 GET하는 get함수와
-    캠페인을 작성할 수 있는 post가 있는 클래스입니다.
+    캠페인을 작성할 Post 요청 클래스입니다.
 
     최초 작성일 : 2023.06.06
     업데이트 일자 : 2023.06.19
@@ -153,7 +153,7 @@ class CampaignView(APIView):
 class CampaignDetailView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 디테일 뷰 입니다.
+    내용 : 캠페인 디테일 View 입니다.
     개별 캠페인 GET과 그 캠페인에 대한 PUT, DELETE 요청을 처리합니다.
     최초 작성일 : 2023.06.06
     업데이트 일자 : 2023.06.14
@@ -264,7 +264,7 @@ class CampaignDetailView(APIView):
 class CampaignLikeView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 좋아요 뷰 입니다.
+    내용 : 캠페인 좋아요 View 입니다.
     캠페인에 대한 좋아요 POST 요청을 처리합니다.
     is_liked라는 value를 모델에 정의하지 않아도 임시값으로 프론트에 넘겨줄 수 있는 듯 합니다.
     좋아요 버튼을 누른 상태 판별을 위해 is_liked값 GET요청을 추가했습니다.
@@ -296,7 +296,7 @@ class CampaignLikeView(APIView):
 class CampaignParticipationView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 유저 참가 뷰 입니다.
+    내용 : 캠페인 유저 참가 View 입니다.
     캠페인에 대한 참가 POST 요청을 처리합니다.
     최초 작성일 : 2023.06.11
     업데이트 일자 : 2023.06.16
@@ -360,16 +360,27 @@ def check_campaign_status():
             campaign.save()
 
 
+class ReviewCommentPagination(PageNumberPagination):
+    """
+    작성자: 최준영
+    내용 : 리뷰, 댓글 페이지네이션 클래스입니다.
+    작성일: 2023.06.25
+    """
+    page_size = 5
+    page_size_query_param = "page_size"
+
+
 class CampaignReviewView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 리뷰 뷰 입니다.
+    내용 : 캠페인 리뷰 View 입니다.
     완료가 된 캠페인의 리뷰에 대한 GET, POST 요청을 처리합니다.
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.09
+    업데이트 일자 : 2023.06.26
     """
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    pagination_class = ReviewCommentPagination
 
     def get(self, request, campaign_id):
         """
@@ -378,7 +389,12 @@ class CampaignReviewView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         review = queryset.reviews.all()
         serializer = CampaignReviewSerializer(review, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        pagination_instance = self.pagination_class()
+        paginated_data = pagination_instance.paginate_queryset(
+            serializer.data, request)
+
+        return pagination_instance.get_paginated_response(paginated_data)
 
     def post(self, request, campaign_id):
         """
@@ -396,7 +412,7 @@ class CampaignReviewView(APIView):
 class CampaignReviewDetailView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 리뷰 디테일 뷰 입니다.
+    내용 : 캠페인 리뷰 디테일 View 입니다.
     완료가 된 캠페인의 리뷰에 대한 PUT, DELETE 요청을 처리합니다.
     최초 작성일 : 2023.06.06
     업데이트 일자 : 2023.06.09
@@ -447,13 +463,14 @@ class CampaignReviewDetailView(APIView):
 class CampaignCommentView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 댓글 뷰 입니다.
+    내용 : 캠페인 댓글 View 입니다.
     캠페인의 댓글에 대한 GET, POST 요청을 처리합니다.
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.09
+    업데이트 일자 : 2023.06.26
     """
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    pagination_class = ReviewCommentPagination
 
     def get(self, request, campaign_id):
         """
@@ -462,7 +479,12 @@ class CampaignCommentView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         comment = queryset.comments.all()
         serializer = CampaignCommentSerializer(comment, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        pagination_instance = self.pagination_class()
+        paginated_data = pagination_instance.paginate_queryset(
+            serializer.data, request)
+
+        return pagination_instance.get_paginated_response(paginated_data)
 
     def post(self, request, campaign_id):
         """
@@ -480,7 +502,7 @@ class CampaignCommentView(APIView):
 class CampaignCommentDetailView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 댓글 디테일 뷰 입니다.
+    내용 : 캠페인 댓글 디테일 View 입니다.
     캠페인의 댓글에 대한 PUT, DELETE 요청을 처리합니다.
     최초 작성일 : 2023.06.06
     업데이트 일자 : 2023.06.09

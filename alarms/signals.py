@@ -125,10 +125,8 @@ scheduler.start()
 #     내용 : 로그인 시 읽지 않은 알림을 사용자에게 알려줌
 #     작성일 : 2023.06.25
 #     '''
-#     print("ㅇㄹㅇㄹㅇㄹ")
 #     unread_notifications = Notification.objects.filter(
 #         user=user, is_read=False)
-#     print(unread_notifications)
 #     for unread in unread_notifications:
 #         message = {
 #             'type': 'notification_message',

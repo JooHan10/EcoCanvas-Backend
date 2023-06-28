@@ -7,27 +7,7 @@ from campaigns.models import (
 )
 
 
-class BaseSerializer(serializers.ModelSerializer):
-    """
-    작성자 : 최준영
-    내용 : 베이스 시리얼라이저입니다.
-    중복되는 속성인 created_at과 updated_at을
-    상속받을 추상화 클래스입니다.
-    최초 작성일 : 2023.06.07
-    업데이트 일자 :
-    """
-
-    created_at = serializers.SerializerMethodField()
-    updated_at = serializers.SerializerMethodField()
-
-    def get_created_at(self, obj):
-        return obj.created_at.strftime("%Y년 %m월 %d일 %R")
-
-    def get_updated_at(self, obj):
-        return obj.updated_at.strftime("%Y년 %m월 %d일 %R")
-
-
-class FundingSerializer(BaseSerializer):
+class FundingSerializer(serializers.ModelSerializer):
     """
     작성자 : 최준영
     내용 : 펀딩 시리얼라이저 입니다.
@@ -57,7 +37,7 @@ class FundingCreateSerializer(serializers.ModelSerializer):
         )
 
 
-class CampaignSerializer(BaseSerializer):
+class CampaignSerializer(serializers.ModelSerializer):
     """
     작성자 : 최준영
     내용 : 캠페인 시리얼라이저 입니다.
@@ -91,10 +71,6 @@ class CampaignSerializer(BaseSerializer):
 
     user = serializers.SerializerMethodField()
     fundings = FundingSerializer()
-    campaign_start_date = serializers.SerializerMethodField()
-    campaign_end_date = serializers.SerializerMethodField()
-    activity_start_date = serializers.SerializerMethodField()
-    activity_end_date = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     participant_count = serializers.SerializerMethodField()
@@ -105,24 +81,6 @@ class CampaignSerializer(BaseSerializer):
     
     def get_user_id(self, obj):
         return obj.user.id
-
-    def get_campaign_start_date(self, obj):
-        return obj.campaign_start_date.strftime("%Y년 %m월 %d일 %R")
-
-    def get_campaign_end_date(self, obj):
-        return obj.campaign_end_date.strftime("%Y년 %m월 %d일 %R")
-
-    def get_activity_start_date(self, obj):
-        if obj.activity_start_date:
-            return obj.activity_start_date.strftime("%Y년 %m월 %d일 %R")
-        else:
-            pass
-
-    def get_activity_end_date(self, obj):
-        if obj.activity_end_date:
-            return obj.activity_end_date.strftime("%Y년 %m월 %d일 %R")
-        else:
-            pass
 
     def get_status(self, obj):
         return obj.get_status_display()
@@ -204,7 +162,7 @@ class CampaignCreateSerializer(serializers.ModelSerializer):
         return data
     
 
-class CampaignReviewSerializer(BaseSerializer):
+class CampaignReviewSerializer(serializers.ModelSerializer):
     """
     작성자 : 최준영
     내용 : 캠페인 리뷰 시리얼라이저 입니다.
@@ -241,7 +199,7 @@ class CampaignReviewCreateSerializer(serializers.ModelSerializer):
         )
 
 
-class CampaignCommentSerializer(BaseSerializer):
+class CampaignCommentSerializer(serializers.ModelSerializer):
     """
     작성자 : 최준영
     내용 : 캠페인 댓글 시리얼라이저 입니다.

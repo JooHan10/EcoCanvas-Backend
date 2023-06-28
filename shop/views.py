@@ -1,5 +1,5 @@
 from rest_framework.generics import get_object_or_404
-from rest_framework import status, permissions
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import ShopProduct, ShopCategory, ShopOrder, RestockNotification
@@ -10,6 +10,7 @@ from config.permissions import IsAdminUserOrReadonly
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
 
 
 class CustomPagination(PageNumberPagination):
@@ -124,8 +125,9 @@ class ProductDetailViewAPI(APIView):
     작성자:장소은
     내용: 카테고리별 상품 상세 조회/ 수정 / 삭제 (일반유저는 조회만)
     작성일: 2023.06.06
-    업데이트일: 2023.06.15
+    업데이트일: 2023.06.
     '''
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, product_id):
         product = get_object_or_404(ShopProduct, id=product_id)
@@ -136,7 +138,7 @@ class ProductDetailViewAPI(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, product_id):
-        permission_classes = [IsAdminUserOrReadonly]
+        self.permission_classes = [IsAdminUser]
         product = get_object_or_404(ShopProduct, id=product_id)
         serializer = ProductListSerializer(
             product, data=request.data, partial=True)
@@ -147,7 +149,7 @@ class ProductDetailViewAPI(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, product_id):
-        permission_classes = [IsAdminUserOrReadonly]
+        self.permission_classes = [IsAdminUser]
 
         product = get_object_or_404(ShopProduct, id=product_id)
         product.delete()

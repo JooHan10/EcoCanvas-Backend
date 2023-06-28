@@ -401,7 +401,6 @@ class ProductOrderTest(APITestCase):
 #     def test_send_notifications(self):
 #         notification = RestockNotification.objects.create(
 #             user=self.user, product=self.product)
-#         print(notification)
 #         send_notifications(sender=ShopProduct,
 #                            instance=self.product, created=False)
 
