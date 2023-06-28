@@ -119,7 +119,7 @@ class OrderProductSerializer(serializers.ModelSerializer):
           3. 사용자가 해당 상품에 대한 주문 목록들을 볼 수 있습니다.
           4. 주문한 수량이 재고보다 클 시 ValdationError 발생(업뎃)  
     작성일 : 2023.06.13
-    업데이트일 : 2023.06.23
+    업데이트일 : 2023.06.27
     '''
     order_info = OrderDetailSerializer(
         many=True, read_only=True)
@@ -132,42 +132,62 @@ class OrderProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'order_info', 'order_quantity', 'order_date', 'zip_code', 'address',
                   'address_detail', 'address_message', 'receiver_name', 'receiver_number', 'user',  'order_totalprice', 'product']
 
+    def get_order_date(self, obj):
+        return obj.order_date.strftime("%Y년 %m월 %d일 %R")
+
+    def validate_order_quantity(self, order_quantity):
+        if order_quantity <= 0:
+            raise serializers.ValidationError("주문 수량은 0보다 작을 수 없습니다.")
+        return order_quantity
+
+    def validate_receiver_number(self, receiver_number):
+        if not re.match(r'^\d{3}-\d{3,4}-\d{4}$', receiver_number):
+            raise serializers.ValidationError(
+                "유효한 연락처를 입력해주세요! 예시: 010-1234-5678")
+        return receiver_number
+
+    def get_product_instance(self, product_key):
+        try:
+            return ShopProduct.objects.get(id=product_key.id)
+        except ShopProduct.DoesNotExist:
+            raise serializers.ValidationError("유효한 상품을 선택해주세요.")
+
+    def update_product_stock(self, product, order_quantity):
+        product.product_stock -= order_quantity
+        if product.product_stock == 0:
+            product.sold_out = True
+            product.restock_available = True
+            product.restocked = False
+        product.save()
+
+    def create_order_detail(self, order, product, order_quantity):
+        order_info = ShopOrderDetail(
+            order=order,
+            product=product,
+            product_count=order_quantity,
+            order_detail_status=0
+        )
+        order_info.save()
+
     def create(self, validated_data):
         order_quantity = validated_data.pop('order_quantity', [])
         product_key = validated_data.pop('product', [])
-        if order_quantity <= 0:
-            raise ValidationError("주문 수량은 0보다 작을 수 없습니다.")
-        receiver_number = validated_data.get('receiver_number')
-        if not re.match(r'^\d{3}-\d{3,4}-\d{4}$', receiver_number):
-            raise ValidationError("유효한 연락처를 입력해주세요! 예시: 010-1234-5678")
-        product = ShopProduct.objects.get(id=product_key.id)
+
+        order_quantity = self.validate_order_quantity(order_quantity)
+        receiver_number = self.validate_receiver_number(
+            validated_data.get('receiver_number'))
+
+        product = self.get_product_instance(product_key)
 
         if product.product_stock >= order_quantity:
-            product.product_stock -= order_quantity
-            if product.product_stock == 0:
-                product.sold_out = True
-                product.restock_available = True
-                product.restocked = False
+            self.update_product_stock(product, order_quantity)
 
-            product.save()
-
-            order_info_list = []
             order = ShopOrder.objects.create(**validated_data)
-            order_info = ShopOrderDetail(
-                order=order,
-                product=product,
-                product_count=order_quantity,
-                order_detail_status=0
-            )
-            order_info_list.append(order_info)
-            ShopOrderDetail.objects.bulk_create(order_info_list)
+            self.create_order_detail(order, product, order_quantity)
 
             return order
         else:
-            raise ValidationError("상품 재고가 주문 수량보다 적습니다.")
-
-    def get_order_date(self, obj):
-        return obj.order_date.strftime("%Y년 %m월 %d일 %R")
+            raise serializers.ValidationError("상품 재고가 주문 수량보다 적습니다.")
 
 
 class RestockNotificationSerializer(serializers.ModelSerializer):
