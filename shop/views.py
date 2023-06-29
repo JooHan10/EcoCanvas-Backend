@@ -11,6 +11,8 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
+from django.core.cache import cache
+from datetime import timedelta
 
 
 class CustomPagination(PageNumberPagination):
@@ -124,17 +126,27 @@ class ProductDetailViewAPI(APIView):
     '''
     작성자:장소은
     내용: 카테고리별 상품 상세 조회/ 수정 / 삭제 (일반유저는 조회만)
+        세션과 쿠키를 이용하여 조회수 중복방지 
     작성일: 2023.06.06
-    업데이트일: 2023.06.
+    업데이트일: 2023.06.29
     '''
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, product_id):
         product = get_object_or_404(ShopProduct, id=product_id)
-        serializer = ProductListSerializer(product)
-        product.hits += 1
-        product.save()
 
+        session_key = request.session.session_key
+        viewed_products = cache.get(f"viewed_products_{session_key}", set())
+
+        if product_id not in viewed_products:
+            product.hits += 1
+            product.save()
+
+        viewed_products.add(product_id)
+        cache.set(f"viewed_products_{session_key}",
+                  viewed_products, timeout=timedelta(days=1))
+
+        serializer = ProductListSerializer(product)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, product_id):

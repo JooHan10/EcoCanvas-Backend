@@ -12,7 +12,7 @@ from django.utils import timezone
 import random
 from PIL import Image
 from io import BytesIO
-from .signals import send_notifications
+# from .signals import send_notifications
 
 
 def arbitrary_image():
@@ -358,58 +358,3 @@ class ProductOrderTest(APITestCase):
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
         self.assertEqual(response.status_code, 201)
-
-
-# class SendNotificationsTest(APITestCase):
-#     '''
-#     상품 재입고 시 알림 구독자들에게 알림 전송 테스트
-#     '''
-#     @classmethod
-#     def setUpTestData(cls):
-#         date = timezone.now() + timedelta(seconds=random.randint(0, 86400))
-
-#         cls.user_data = {
-#             "email": "test@google.com",
-#             "username": "testuser",
-#             "password": "Xptmxm123@456"
-#         }
-#         cls.user = User.objects.create_user(**cls.user_data)
-
-#         cls.category_data = {
-#             'category_name': "카테고리"
-#         }
-#         cls.category = ShopCategory.objects.create(**cls.category_data)
-#         cls.product_data = {
-#             'product_name': "상품",
-#             'product_desc': "테스트",
-#             'restocked': True,
-#             'category': cls.category,
-#             'product_date': date,
-#             'product_price': 10000,
-#             'product_stock': 123,
-#             "images": [
-#                 {
-#                     "id": 1,
-#                     "product": 1,
-#                     "image_file": ""
-#                 }]
-#         }
-
-#         image_file = arbitrary_image()
-#         cls.product_data["images"][0]["image_file"] = image_file
-
-#     def test_send_notifications(self):
-#         notification = RestockNotification.objects.create(
-#             user=self.user, product=self.product)
-#         send_notifications(sender=ShopProduct,
-#                            instance=self.product, created=False)
-
-#         notification.refresh_from_db()
-#         self.assertTrue(notification.notification_sent)
-        # self.assertEqual(notification.restock_message,
-        #                  f"상품 {self.product.product_name}이(가) 재입고되었습니다.")
-
-    # restock_created_at = models.DateTimeField(
-    #     auto_now_add=True)
-    # notification_sent = models.BooleanField(default=False)
-    # restock_message = models.CharField(max_length=255, null=True, blank=True)
