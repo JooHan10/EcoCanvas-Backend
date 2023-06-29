@@ -150,10 +150,13 @@ class ProductDetailViewAPI(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, product_id):
-        self.permission_classes = [IsAdminUser]
+        if not request.user.is_admin:
+            return Response({"message": "관리자만 수정할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
+
         product = get_object_or_404(ShopProduct, id=product_id)
         serializer = ProductListSerializer(
             product, data=request.data, partial=True)
+
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -161,7 +164,8 @@ class ProductDetailViewAPI(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, product_id):
-        self.permission_classes = [IsAdminUser]
+        if not request.user.is_admin:
+            return Response({"message": "관리자만 수정할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
 
         product = get_object_or_404(ShopProduct, id=product_id)
         product.delete()
@@ -213,26 +217,26 @@ class AdminCategoryViewAPI(APIView):
 class OrderProductViewAPI(APIView):
     '''
     작성자 : 장소은
-    내용 : 해당 상품에 대한 주문 생성 / 사용자가 proudct_id에 해당하는 상품 목록 조회 
+    내용 : 해당 상품에 대한 주문 생성(+다중 주문) / 사용자가 proudct_id에 해당하는 상품 목록 조회
     최초 작성일 : 2023.06.13
-    업데이트 일자 :
+    업데이트일 : 2023.06.29
     '''
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, product_id):
-        orders = ShopOrder.objects.filter(
-            user=request.user.id, product_id=product_id)
-        serializer = OrderProductSerializer(orders, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def post(self, request):
+        orders = request.data.get('orders', [])
+        order_list = []
+        for order_data in orders:
+            product_id = order_data.get('product')
+            product = get_object_or_404(ShopProduct, id=product_id)
+            serializer = OrderProductSerializer(data=order_data)
+            if serializer.is_valid():
+                serializer.save(product=product)
+                order_list.append(serializer.data)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def post(self, request, product_id):
-        product = get_object_or_404(ShopProduct, id=product_id)
-        serializer = OrderProductSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(product=product)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(order_list, status=status.HTTP_201_CREATED)
 
 
 class AdminOrderViewAPI(APIView):

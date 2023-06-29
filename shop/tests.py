@@ -5,8 +5,10 @@ from .models import (
     ShopProduct,
     ShopCategory,
     ShopImageFile,
-    RestockNotification
+    RestockNotification,
+    ShopOrder
 )
+from payments.models import Payment
 from datetime import timedelta
 from django.utils import timezone
 import random
@@ -327,34 +329,3 @@ class ProductRestockNotificatinonTest(APITestCase):
             response.data['message'],
             '이미 재입고 알림을 구독 하셨습니다.'
         )
-
-
-class ProductOrderTest(APITestCase):
-    '''
-    내용 : 상품 주문
-    '''
-    @classmethod
-    def setUpTestData(cls):
-        date = timezone.now() + timedelta(seconds=random.randint(0, 86400))
-
-        cls.user_data = {
-            "email": "test@google.com",
-            "username": "testuser",
-            "password": "Xptmxm123@456"
-        }
-        cls.user = User.objects.create_user(**cls.user_data)
-
-    def setUp(self):
-        self.access_token = self.client.post(
-            reverse("log_in"), self.user_data).data["access"]
-
-    def test_product_order(self):
-        '''
-        상품 주문을 위한 테스트
-        '''
-        response = self.client.post(
-            self.url,
-            data=self.product_data,
-            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
-        )
-        self.assertEqual(response.status_code, 201)
