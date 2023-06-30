@@ -74,7 +74,6 @@ class SignUpView(APIView):
     def post(self, request):
         verification_code = VerificationCodeGenerator.verification_code(
             request.data['email'], request.data['time_check'])
-        print(verification_code)
         check_code = request.data.get('check_code')
         if verification_code == check_code:
             serializer = SignUpSerializer(data=request.data)
@@ -141,6 +140,7 @@ class CustomRefreshToken(RefreshToken):
         token["user_id"] = user.id
         token['email'] = user.email
         token['is_admin'] = user.is_admin
+        token['login_type'] = SocialAccount.objects.get(user=user).provider
         return token
 
 
@@ -185,7 +185,7 @@ class GoogleCallbackView(APIView):
     def post(self, request):
         client_id = os.environ.get("SOCIAL_AUTH_GOOGLE_CLIENT_ID")
         client_secret = os.environ.get("SOCIAL_AUTH_GOOGLE_SECRET")
-        authorization_code = request.GET.get('code')
+        authorization_code = request.data['code']
 
         access_token_request = requests.post(
             "https://oauth2.googleapis.com/token",
@@ -209,26 +209,29 @@ class GoogleCallbackView(APIView):
         user_data_json = user_data_request.json()
         email = user_data_json.get("email")
         username = user_data_json.get("name")
-
-        try:
+        social = "google"
+        
+        if User.objects.filter(email=email).exists():
             user = User.objects.get(email=email)
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
-
+            refresh["login_type"] = user.login_type
             return Response(
                 {
                     "refresh": str(refresh),
                     "access": str(refresh.access_token),
                 },
-                status=status.HTTP_200_OK,
+                status=status.HTTP_200_OK
             )
-        except:
+        else:
             user = User.objects.create_user(email=email, username=username)
+            user.login_type = social
             user.set_unusable_password()
             user.save()
+            SocialAccount.objects.create(user=user, provider=social, uid=username+'(Google)')
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
-
+            refresh["login_type"] = social
             return Response(
                 {
                     "refresh": str(refresh),

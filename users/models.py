@@ -87,6 +87,7 @@ class User(AbstractBaseUser):
     updated_at = models.DateTimeField(auto_now=True)
     withdrawal = models.BooleanField(default=False)
     withdrawal_at = models.DateTimeField(null=True, blank=True)
+    login_type = models.CharField(max_length=10, default="normal")
     objects = UserManager()
 
     USERNAME_FIELD = "email"
