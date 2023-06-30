@@ -178,7 +178,7 @@ class GoogleCallbackView(APIView):
             Authorization Code를 활용하여 우리의 앱이 API에 사용자의 정보를 요청하여 받아옵니다.
             해당 정보들 중 email을 사용하여 사용자를 확인하고 JWT token을 발급받아 로그인을 진행합니다.
     최초 작성일 : 2023.06.08
-    업데이트 일자 : 2023.06.19
+    업데이트 일자 : 2023.06.30 이슈번호/Fix#231
     '''
     permission_classes = [AllowAny]
 
@@ -211,8 +211,15 @@ class GoogleCallbackView(APIView):
         username = user_data_json.get("name")
         social = "google"
         
-        if User.objects.filter(email=email).exists():
+        try:
             user = User.objects.get(email=email)
+            social_user = SocialAccount.objects.get(user=user)
+            
+            if social_user is None:
+                return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(일반 회원가입 계정입니다.)'}, status=status.HTTP_400_BAD_REQUEST)
+            if social_user.provider != 'google':
+                return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(다른 소셜 계정으로 가입하셨습니다.)'}, status=status.HTTP_400_BAD_REQUEST)
+            
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
             refresh["login_type"] = user.login_type
@@ -223,9 +230,8 @@ class GoogleCallbackView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-        else:
+        except ObjectDoesNotExist:
             user = User.objects.create_user(email=email, username=username)
-            user.login_type = social
             user.set_unusable_password()
             user.save()
             SocialAccount.objects.create(user=user, provider=social, uid=username+'(Google)')
