@@ -10,9 +10,9 @@ from config.permissions import IsAdminUserOrReadonly
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django.core.cache import cache
-from datetime import timedelta
+from django.db import transaction
 
 
 class CustomPagination(PageNumberPagination):
@@ -144,7 +144,7 @@ class ProductDetailViewAPI(APIView):
 
         viewed_products.add(product_id)
         cache.set(f"viewed_products_{session_key}",
-                  viewed_products, timeout=timedelta(days=1))
+                  viewed_products, timeout=86400)
 
         serializer = ProductListSerializer(product)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -217,26 +217,33 @@ class AdminCategoryViewAPI(APIView):
 class OrderProductViewAPI(APIView):
     '''
     작성자 : 장소은
-    내용 : 해당 상품에 대한 주문 생성(+다중 주문) / 사용자가 proudct_id에 해당하는 상품 목록 조회
+    내용 : 해당 상품에 대한 주문 생성(+다중 주문), 트랜잭션을 이용하여 모든 주문이 유효성 검사를 통과해야 db저장 되도록 개선
     최초 작성일 : 2023.06.13
-    업데이트일 : 2023.06.29
+    업데이트일 : 2023.06.30
     '''
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         orders = request.data.get('orders', [])
-        order_list = []
-        for order_data in orders:
-            product_id = order_data.get('product')
-            product = get_object_or_404(ShopProduct, id=product_id)
-            serializer = OrderProductSerializer(data=order_data)
-            if serializer.is_valid():
+        valid_orders = []
+
+        with transaction.atomic():
+            for order_data in orders:
+                product_id = order_data.get('product')
+                product = get_object_or_404(ShopProduct, id=product_id)
+                serializer = OrderProductSerializer(data=order_data)
+                if serializer.is_valid():
+                    valid_orders.append((serializer, product))
+                else:
+                    print(serializer.errors)
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            order_list = []
+            for serializer, product in valid_orders:
                 serializer.save(product=product)
                 order_list.append(serializer.data)
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(order_list, status=status.HTTP_201_CREATED)
+            return Response(order_list, status=status.HTTP_201_CREATED)
 
 
 class AdminOrderViewAPI(APIView):

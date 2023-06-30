@@ -172,22 +172,23 @@ class OrderProductSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         order_quantity = validated_data.pop('order_quantity', [])
         product_key = validated_data.pop('product', [])
-
         order_quantity = self.validate_order_quantity(order_quantity)
         receiver_number = self.validate_receiver_number(
             validated_data.get('receiver_number'))
 
         product = self.get_product_instance(product_key)
+        self.validate_product_stock(product, order_quantity)  # 재고 유효성 검사
+        self.update_product_stock(product, order_quantity)
 
-        if product.product_stock >= order_quantity:
-            self.update_product_stock(product, order_quantity)
+        order = ShopOrder.objects.create(**validated_data)
+        self.create_order_detail(order, product, order_quantity)
 
-            order = ShopOrder.objects.create(**validated_data)
-            self.create_order_detail(order, product, order_quantity)
+        return order
 
-            return order
-        else:
-            raise serializers.ValidationError("상품 재고가 주문 수량보다 적습니다.")
+    def validate_product_stock(self, product, order_quantity):
+        if product.product_stock < order_quantity:
+            raise serializers.ValidationError(
+                f"{product}의 상품 재고가 주문 수량보다 적습니다.")
 
 
 class RestockNotificationSerializer(serializers.ModelSerializer):
