@@ -479,13 +479,14 @@ class UserProfileAPIView(APIView):
     def put(self, request):
         user_profile = UserProfile.objects.get(user=request.user)
         serializer = UserProfileSerializer(
-            instance=user_profile, data=request.data
+            instance=user_profile, data=request.data, partial=True
         )
         if serializer.is_valid():
             serializer.save()
             return Response(
                 {"message": "회원정보 수정 완료!"}, status=status.HTTP_200_OK
             )
+
         return Response(
             serializer.errors, status=status.HTTP_400_BAD_REQUEST
         )
