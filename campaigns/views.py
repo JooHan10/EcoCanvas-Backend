@@ -41,6 +41,8 @@ class CampaignView(APIView):
         """
         end = self.request.query_params.get("end", None)
         order = self.request.query_params.get("order", None)
+        keyward = self.request.query_params.get("keyward", None)
+        
         queryset = (
             Campaign.objects.select_related("user")
             .select_related("fundings")
@@ -48,6 +50,12 @@ class CampaignView(APIView):
             .prefetch_related("participant")
             .all()
         )
+
+        if keyward:
+            queryset = queryset.filter(
+                Q(title__icontains=keyward) |
+                Q(content__icontains=keyward)
+            )
 
         if end == "N":
             queryset = queryset.filter(
@@ -120,6 +128,24 @@ class CampaignView(APIView):
             "data": [campaign_serializer.data, funding_serializer.data],
         }
         return Response(response_data, status=status.HTTP_201_CREATED)
+    
+
+class TagFilterView(ListAPIView):
+    """
+    작성자: 최준영
+    내용 : 같은 태그의 캠페인을 모아볼 수 있는 클래스입니다.
+    작성일: 2023.06.30
+    """
+
+    serializer_class = CampaignSerializer
+
+    def get_queryset(self):
+        tag = self.request.query_params.get("name", None)
+        
+        queryset = Campaign.objects.filter(tags__name__in=[tag])
+        
+        return queryset
+    
 
 class CampaignDetailView(APIView):
     """
@@ -324,23 +350,6 @@ class CampaignStatusChecker():
         for campaign in campaigns:
             campaign.status = 3
             campaign.save()
-
-
-class TagFilterView(ListAPIView):
-    """
-    작성자: 최준영
-    내용 : 같은 태그의 캠페인을 모아볼 수 있는 클래스입니다.
-    작성일: 2023.06.30
-    """
-
-    serializer_class = CampaignSerializer
-
-    def get_queryset(self):
-        tag = self.request.query_params.get("name", None)
-        
-        queryset = Campaign.objects.filter(tags__name__in=[tag])
-        
-        return queryset
 
 
 class ReviewCommentPagination(PageNumberPagination):
