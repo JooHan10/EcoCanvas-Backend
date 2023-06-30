@@ -3,7 +3,7 @@ from campaigns import views
 
 urlpatterns = [
     path('', views.CampaignView.as_view(), name='campaign_view'),
-    path('<str:tag>/',views.TagFilterView.as_view(), name='tag_filter_view'),
+    path('tag/',views.TagFilterView.as_view(), name='tag_filter_view'),
     path('create/', views.CampaignView.as_view(), name='campaign_view'),
     path('<int:campaign_id>/', views.CampaignDetailView.as_view(),
          name='campaign_detail_view'),

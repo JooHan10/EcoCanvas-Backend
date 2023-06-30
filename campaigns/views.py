@@ -332,8 +332,11 @@ class TagFilterView(ListAPIView):
     내용 : 같은 태그의 캠페인을 모아볼 수 있는 클래스입니다.
     작성일: 2023.06.30
     """
+
+    serializer_class = CampaignSerializer
+
     def get_queryset(self):
-        tag = self.kwargs['tag']
+        tag = self.request.query_params.get("name", None)
         
         queryset = Campaign.objects.filter(tags__name__in=[tag])
         
