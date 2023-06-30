@@ -3,7 +3,7 @@ from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Count
+from django.db.models import Q, Count, F
 from django.utils import timezone
 from campaigns.models import (
     Campaign,
@@ -64,9 +64,7 @@ class CampaignView(APIView):
             "closing": queryset.order_by("campaign_end_date"),
             "popular": queryset.annotate(participant_count=Count("participant")).order_by("-participant_count"),
             "like": queryset.annotate(like_count=Count("like")).order_by("-like_count"),
-            "amount": queryset.filter(
-                ~Q(fundings=None) & Q(fundings__goal__gt=0)
-            ).order_by("-fundings__amount"),
+            "amount": queryset.order_by("-fundings__amount"),
         }
 
         queryset = orders_dict[order]
@@ -294,22 +292,36 @@ class CampaignParticipationView(APIView):
         return Response({"is_participated": is_participated, "message": message}, status=status.HTTP_200_OK)
 
 
-def check_campaign_status():
+class CampaignStatusChecker():
     """
     작성자 : 최준영
-    내용 : 캠페인 status 체크 함수입니다.
-    status가 1인 캠페인 중 완료 날짜가 되거나 지난 캠페인의 status를
-    2으로 바꿔주는 함수입니다.
+    내용 : scheduler를 통해 관리할 캠페인 함수 클래스입니다.
     최초 작성일 : 2023.06.08
-    업데이트 일자 : 2023.06.19
+    업데이트 일자 : 2023.06.30
     """
-    now = timezone.now()
-    print(now)
-    campaigns = Campaign.objects.filter(status=1)
+    def check_campaign_status():
+        """
+        status가 1인 캠페인 중 완료 날짜가 되거나 지난 캠페인의 
+        status를 2로 바꿉니다.
+        """
+        now = timezone.now()
+        campaigns = Campaign.objects.filter(status=1)
 
-    for campaign in campaigns:
-        if campaign.campaign_end_date <= now:
-            campaign.status = 2
+        for campaign in campaigns:
+            if campaign.campaign_end_date <= now:
+                campaign.status = 2
+                campaign.save()
+
+    def check_funding_success():
+        """
+        종료된 캠페인의 펀딩 성공여부를 판단해 펀딩에 실패한 캠페인의 
+        status를 3으로 바꿉니다.
+        """
+        now = timezone.now()
+        campaigns = Campaign.objects.filter(status=2).filter(fundings__amount__lt=F("fundings__goal"))
+
+        for campaign in campaigns:
+            campaign.status = 3
             campaign.save()
 
 

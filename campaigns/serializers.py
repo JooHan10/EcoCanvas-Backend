@@ -49,28 +49,7 @@ class CampaignSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Campaign
-        fields = (
-            "id",
-            "user",
-            "user_id",
-            "like_count",
-            "participant_count",
-            "title",
-            "content",
-            "members",
-            "campaign_start_date",
-            "campaign_end_date",
-            "activity_start_date",
-            "activity_end_date",
-            "image",
-            "status",
-            "category",
-            "is_funding",
-            "tags",
-            "created_at",
-            "updated_at",
-            "fundings",
-        )
+        fields = "__all__"
         
     tags = TagListSerializerField()
     user = serializers.SerializerMethodField()
@@ -79,7 +58,6 @@ class CampaignSerializer(serializers.ModelSerializer):
     participant_count = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     category = serializers.SerializerMethodField()
-
 
     def get_user(self, obj):
         return obj.user.username

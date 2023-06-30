@@ -14,7 +14,6 @@ class CampaignDisplay(admin.ModelAdmin):
     """
     작성자 : 최준영
     내용 : 캠페인 admin 페이지 등록 클래스입니다.
-    image_tag 함수로 admin 페이지에서 이미지를 바로 확인할 수 있게 변경
     최초 작성일 : 2023.06.06
     업데이트 일자 : 2023.06.30
     """
@@ -25,6 +24,7 @@ class CampaignDisplay(admin.ModelAdmin):
         "members",
         "image_tag",
         "status",
+        "category",
         "is_funding",
         "campaign_start_date",
         "campaign_end_date",
@@ -39,6 +39,7 @@ class CampaignDisplay(admin.ModelAdmin):
         "content",
         "user",
         "status",
+        "category",
         "participant",
         "like",
         "members",

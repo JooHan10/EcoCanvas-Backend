@@ -1,33 +1,25 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from django_apscheduler.jobstores import register_events, DjangoJobStore
-from datetime import datetime, timedelta
-from django.utils import timezone
-from django.apps import AppConfig
-from django.conf import settings
-from .models import Participant, Campaign
-from .views import check_campaign_status
+from django_apscheduler.jobstores import DjangoJobStore
+from .views import CampaignStatusChecker
 from apscheduler.triggers.cron import CronTrigger
-from django_apscheduler.jobstores import register_events
 
 
 def start():
     """
     작성자 : 최준영
     내용 : 캠페인 status 체크 실행 함수입니다.
-    Blocking이 아닌 BackgroundScheduler를 활용하여 백그라운드에서 작동합니다.
-    
     최초 작성일 : 2023.06.08
-    업데이트 일자 :
+    업데이트 일자 : 2023.06.30
     """
-    scheduler = BackgroundScheduler()
-    scheduler.add_jobstore(DjangoJobStore(), "djangojobstore")
-    register_events(scheduler)
+    campaign_scheduler = BackgroundScheduler()
+    campaign_scheduler.add_jobstore(DjangoJobStore(), "djangojobstore")
 
-    # @scheduler.scheduled_job('cron', minute = '*/1', name = 'check')
-    @scheduler.scheduled_job("cron", hour="16", name="check")
-    def check():
-        check_campaign_status()
+    @campaign_scheduler.scheduled_job(CronTrigger(hour=7), name='check_campaign_status')
+    def check_campaign_status_job():
+        CampaignStatusChecker.check_campaign_status()
 
-    scheduler.start()
+    @campaign_scheduler.scheduled_job(CronTrigger(hour=7, minute=50), name='check_funding_success')
+    def check_funding_success_job():
+        CampaignStatusChecker.check_funding_success()
 
-
+    campaign_scheduler.start()
