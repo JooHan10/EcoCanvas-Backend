@@ -50,7 +50,9 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.kakao',
     'allauth.socialaccount.providers.google',
+
     'django_apscheduler',
+    'taggit',
 ]
 
 # 웹사이트 복수 생성시 사이트 지정을 위해 필요
@@ -287,3 +289,6 @@ CSRF_TRUSTED_ORIGINS = [
     FRONT_BASE_URL,
     BASE_URL,
 ]
+
+TAGGIT_CASE_INSENSITIVE = True
+TAGGIT_LIMIT = 50

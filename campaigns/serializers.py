@@ -5,6 +5,8 @@ from campaigns.models import (
     CampaignComment,
     Funding,
 )
+from taggit.serializers import (TagListSerializerField,
+                                TaggitSerializer)
 
 
 class FundingSerializer(serializers.ModelSerializer):
@@ -41,9 +43,8 @@ class CampaignSerializer(serializers.ModelSerializer):
     """
     작성자 : 최준영
     내용 : 캠페인 시리얼라이저 입니다.
-    obj.user.email를 name값이 뜨도록 변경 완료
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.18
+    업데이트 일자 : 2023.06.30
     """
 
     class Meta:
@@ -63,17 +64,21 @@ class CampaignSerializer(serializers.ModelSerializer):
             "activity_end_date",
             "image",
             "status",
+            "category",
             "is_funding",
+            "tags",
             "created_at",
             "updated_at",
             "fundings",
         )
-
+        
+    tags = TagListSerializerField()
     user = serializers.SerializerMethodField()
     fundings = FundingSerializer()
-    status = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     participant_count = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
 
 
     def get_user(self, obj):
@@ -82,23 +87,25 @@ class CampaignSerializer(serializers.ModelSerializer):
     def get_user_id(self, obj):
         return obj.user.id
 
-    def get_status(self, obj):
-        return obj.get_status_display()
-    
     def get_like_count(self, obj):
         return obj.like.count()
 
     def get_participant_count(self, obj):
         return obj.participant.count()
+    
+    def get_status(self, obj):
+        return obj.get_status_display()
+
+    def get_category(self, obj):
+        return obj.get_category_display()
 
 
-class CampaignCreateSerializer(serializers.ModelSerializer):
+class CampaignCreateSerializer(TaggitSerializer, serializers.ModelSerializer):
     """
     작성자 : 최준영
     내용 : 캠페인 생성 시리얼라이저 입니다.
-    validation 진행중
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.20
+    업데이트 일자 : 2023.06.30
     """
 
     class Meta:
@@ -114,12 +121,16 @@ class CampaignCreateSerializer(serializers.ModelSerializer):
             "image",
             "is_funding",
             "status",
+            "category",
+            "tags",
         )
 
     campaign_start_date = serializers.DateTimeField()
     campaign_end_date = serializers.DateTimeField()
     activity_start_date = serializers.DateTimeField(required=False, allow_null=True)
     activity_end_date = serializers.DateTimeField(required=False, allow_null=True)
+
+    tags = TagListSerializerField()
 
     def validate(self, data):
         """

@@ -14,10 +14,9 @@ class CampaignDisplay(admin.ModelAdmin):
     """
     작성자 : 최준영
     내용 : 캠페인 admin 페이지 등록 클래스입니다.
-    list_display는 ManyToManyField를 지원하지 않아 like는 넣지 않았습니다.
-    image_tag 함수로 admin 페이지에서 이미지를 바로 확인할 수 있게 했습니다.
+    image_tag 함수로 admin 페이지에서 이미지를 바로 확인할 수 있게 변경
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.14
+    업데이트 일자 : 2023.06.30
     """
 
     list_display = [
@@ -33,6 +32,7 @@ class CampaignDisplay(admin.ModelAdmin):
         "activity_end_date",
         "created_at",
         "updated_at",
+        "tag_list",
     ]
     fields = [
         "title",
@@ -48,6 +48,7 @@ class CampaignDisplay(admin.ModelAdmin):
         "campaign_end_date",
         "activity_start_date",
         "activity_end_date",
+        "tags",
     ]
     readonly_fields = (
         "created_at",
@@ -67,6 +68,12 @@ class CampaignDisplay(admin.ModelAdmin):
     def image_tag(self, campaign):
         if campaign.image:
             return mark_safe(f'<img src="{campaign.image.url}" style="width:50px;" />')
+        
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('tags')
+
+    def tag_list(self, obj):
+        return u", ".join(o.name for o in obj.tags.all())
 
 
 @admin.register(Funding)
