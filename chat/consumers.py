@@ -6,29 +6,6 @@ from users.models import User
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    def last_30_messages(self, room_id):
-        return Message.objects.filter(room_id=room_id).order_by('created_at')[:30]
-
-    async def fetch_messages(self, data):
-        """
-        작성자 : 박지홍
-        내용 : 웹 소켓을 통해 메시지를 조회하고 메시지를 클라이언트로 전송하는 함수.
-        최초 작성일 : 2023.06.06
-        업데이트 일자 : 2023.06.15
-        #06.15 : 동기 기반 클레스에서 비동기 기반으로 변경
-        """
-        room_id = int(self.room_name)
-        user_id = data["user_id"]
-
-        user_contact = await sync_to_async(User.objects.get)(id=user_id)
-        room_contact = await sync_to_async(Room.objects.get)(id=room_id)
-        
-        messages = await sync_to_async(self.last_30_messages)(room_id=room_id)
-        json_message = await sync_to_async(self.messages_to_json)(messages)
-        content = {"command": "messages",
-                   "messages": json_message}
-
-        await self.send_message(message=content)
 
     async def new_message(self, data):
         """
@@ -57,17 +34,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         is_active = not self.user.is_staff
         await self.room_set_activate(room_contact, is_active)
 
-
-    def messages_to_json(self, messages):
-        result = []
-        for message in messages:
-            result.append(self.message_to_json(message))
-        return result
-
     def message_to_json(self, message):
         return {
-            "author": message.user_id.email,
-            "content": message.message,
+            "user_id": message.user_id.email,
+            "message": message.message,
             "timestamp": str(message.created_at),
         }
 
@@ -76,7 +46,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await sync_to_async(room.save)()
 
 
-    commands = {"fetch_messages": fetch_messages, "new_message": new_message}
+    commands = {"new_message": new_message}
 
     async def connect(self):
         """
@@ -133,7 +103,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         작성자 : 박지홍
         내용 : 채팅 메시지를 웹 소켓으로 전송하는 함수. 
-            - 하단의 send_message, chat_message 도 동일 기능 수행.
+            - 하단의 chat_message 도 동일 기능 수행.
         최초 작성일 : 2023.06.06
         업데이트 일자 : 2023.06.15
         #06.15 : 동기 기반 클레스에서 비동기 기반으로 변경
@@ -141,9 +111,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             self.room_group_name, {"type": "chat_message", "message": message}
         )
-
-    async def send_message(self, message):
-        await self.send(text_data=json.dumps(message))
 
     async def chat_message(self, event):
         message = event["message"]
