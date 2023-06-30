@@ -1,4 +1,5 @@
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
@@ -323,6 +324,20 @@ class CampaignStatusChecker():
         for campaign in campaigns:
             campaign.status = 3
             campaign.save()
+
+
+class TagFilterView(ListAPIView):
+    """
+    작성자: 최준영
+    내용 : 같은 태그의 캠페인을 모아볼 수 있는 클래스입니다.
+    작성일: 2023.06.30
+    """
+    def get_queryset(self):
+        tag = self.kwargs['tag']
+        
+        queryset = Campaign.objects.filter(tags__name__in=[tag])
+        
+        return queryset
 
 
 class ReviewCommentPagination(PageNumberPagination):

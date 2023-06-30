@@ -1,3 +1,5 @@
+import os
+import json
 import random
 import tempfile
 from PIL import Image
@@ -12,17 +14,26 @@ from campaigns.models import Campaign
 from campaigns.serializers import CampaignSerializer
 
 
-def arbitrary_image(temp_text):
+def get_dummy_path(file_name):
+    """
+    작성자 : 최준영
+    내용 : 더미데이터 로드를 위한 함수입니다.
+    최초 작성일 : 2023.06.30
+    """
+    directory = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(directory, file_name)
+
+
+def arbitrary_image(temp_image):
     """
     작성자 : 최준영
     내용 : 테스트용 임의 이미지 생성 함수입니다.
     최초 작성일 : 2023.06.08
-    업데이트 일자 :
     """
     size = (50, 50)
     image = Image.new("RGBA", size)
-    image.save(temp_text, "png")
-    return temp_text
+    image.save(temp_image, "png")
+    return temp_image
 
 
 class CampaignCreateTest(APITestCase):
@@ -30,32 +41,23 @@ class CampaignCreateTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 생성 테스트 클래스입니다.
     최초 작성일 : 2023.06.08
-    업데이트 일자 :
+    업데이트 일자 : 2023.06.30
     """
 
     @classmethod
     def setUpTestData(cls):
+        file_path = get_dummy_path('dummy_data.json')
+        with open(file_path, encoding="utf-8") as test_json:
+            test_dict = json.load(test_json)
+            cls.campaign_data = test_dict
+            test_json.close()
         cls.user_data = {
             "email": "test@test.com",
             "username": "John",
             "password": "Qwerasdf1234!",
         }
-        cls.campaign_data = {
-            "title": "탄소발자국 캠페인 모집",
-            "content": "더 나은 세상을 위한 지구별 눈물 닦아주기, 이제 우리가 행동에 나설 때입니다.",
-            "members": "200",
-            "campaign_start_date": "2023-06-09",
-            "campaign_end_date": "2023-06-16",
-            "activity_start_date": "2023-06-17",
-            "activity_end_date": "2023-06-27",
-            "image": "",
-            "is_funding": "True",
-            "status": "1",
-            # funding data
-            "goal": "2000000",
-            "amount": "0",
-            "approve_file": "",
-        }
+        cls.campaign_data["goal"] = "10000"
+        cls.campaign_data["amount"] = "0"
         cls.user = User.objects.create_user(**cls.user_data)
 
     def setUp(self):
@@ -135,6 +137,7 @@ class CampaignReadTest(APITestCase):
                     image="",
                     status=1,
                     is_funding="False",
+                    category=1,
                 )
             )
 
@@ -151,7 +154,7 @@ class CampaignReadTest(APITestCase):
             serializer = CampaignSerializer(campaign).data
             self.assertEqual(response.status_code, 200)
             for key, value in serializer.items():
-                self.assertEqual(response.data['results'][i][key], value)
+                self.assertEqual(response.data["results"][i][key], value)
 
 
 class CampaignDetailTest(APITestCase):
@@ -169,19 +172,11 @@ class CampaignDetailTest(APITestCase):
             "username": "John",
             "password": "Qwerasdf1234!",
         }
-        date = timezone.now() + timedelta(seconds=random.randint(0, 86400))
-        cls.campaign_data = {
-            "title": "탄소발자국 캠페인 모집",
-            "content": "더 나은 세상을 위한 지구별 눈물 닦아주기, 이제 우리가 행동에 나설 때입니다.",
-            "members": "200",
-            "campaign_start_date": date,
-            "campaign_end_date": date,
-            "activity_start_date": date,
-            "activity_end_date": date,
-            "image": "",
-            "is_funding": "False",
-            "status": "1"
-        }
+        file_path = get_dummy_path('dummy_data.json')
+        with open(file_path, encoding="utf-8") as test_json:
+            test_dict = json.load(test_json)
+            cls.campaign_data = test_dict
+            test_json.close()
         cls.new_campaign_data = {
             "title": "탄소발자국 캠페인 모집",
             "content": "더 나은 세상을 위한 지구별 눈물 닦아주기, 이제 우리가 행동에 나설 때입니다.\
@@ -194,7 +189,7 @@ class CampaignDetailTest(APITestCase):
             "image": "",
             "is_funding": "True",
             "status": "1",
-            # funding data
+
             "goal": "1000000",
             "amount": "10000",
             "approve_file": "",
@@ -216,7 +211,7 @@ class CampaignDetailTest(APITestCase):
         temp_text.seek(0)
         self.new_campaign_data["approve_file"] = temp_text
 
-        self.campaign_data['user'] = User.objects.get(id=1)
+        self.campaign_data["user"] = User.objects.get(id=1)
 
         self.campaign = Campaign.objects.create(**self.campaign_data)
         
@@ -224,7 +219,7 @@ class CampaignDetailTest(APITestCase):
         """
         개별 캠페인 GET요청 테스트 함수입니다.
         """
-        campaign = Campaign.objects.get(title=self.campaign_data['title'])
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
         url = campaign.get_absolute_url()
         response = self.client.get(
             path=url,
@@ -238,7 +233,7 @@ class CampaignDetailTest(APITestCase):
         임시 이미지파일과 펀딩 승인파일을 생성한 후
         수정한 뒤 PUT 요청이 잘 이루어지는지 검증하는 테스트함수입니다.
         """
-        campaign = Campaign.objects.get(title=self.campaign_data['title'])
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
         url = campaign.get_absolute_url()
         response = self.client.put(
             path=url,
@@ -253,7 +248,7 @@ class CampaignDetailTest(APITestCase):
         임시 이미지파일과 펀딩 승인파일을 생성한 후
         DELETE 요청이 잘 이루어지는지 검증하는 테스트함수입니다.
         """
-        campaign = Campaign.objects.get(title=self.campaign_data['title'])
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
         url = campaign.get_absolute_url()
         response = self.client.delete(
             path=url, 
@@ -277,19 +272,11 @@ class CampaignLikeTest(APITestCase):
             "username": "John",
             "password": "Qwerasdf1234!",
         }
-        date = timezone.now() + timedelta(seconds=random.randint(0, 86400))
-        cls.campaign_data = {
-            "title": "탄소발자국 캠페인 모집",
-            "content": "더 나은 세상을 위한 지구별 눈물 닦아주기, 이제 우리가 행동에 나설 때입니다.",
-            "members": "200",
-            "campaign_start_date": date,
-            "campaign_end_date": date,
-            "activity_start_date": date,
-            "activity_end_date": date,
-            "image": "",
-            "is_funding": "False",
-            "status": "1",
-        }
+        file_path = get_dummy_path('dummy_data.json')
+        with open(file_path, encoding="utf-8") as test_json:
+            test_dict = json.load(test_json)
+            cls.campaign_data = test_dict
+            test_json.close()
         temp_img = tempfile.NamedTemporaryFile()
         temp_img.name = "image.png"
         image_file = arbitrary_image(temp_img)
@@ -298,7 +285,7 @@ class CampaignLikeTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data['user'] = User.objects.get(id=1)
+        cls.campaign_data["user"] = User.objects.get(id=1)
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
     def setUp(self):
@@ -310,7 +297,7 @@ class CampaignLikeTest(APITestCase):
         """
         캠페인 좋아요 POST요청 테스트 함수입니다.
         """
-        campaign = Campaign.objects.get(title=self.campaign_data['title'])
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
         url = reverse("campaign_like_view", kwargs={"campaign_id": campaign.id})
         response = self.client.post(
             path=url,
@@ -323,7 +310,7 @@ class CampaignLikeTest(APITestCase):
         """
         캠페인 좋아요 취소 POST요청 테스트 함수입니다.
         """
-        campaign = Campaign.objects.get(title=self.campaign_data['title'])
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
         url = reverse("campaign_like_view", kwargs={"campaign_id": campaign.id})
         response = self.client.post(
             path=url,
@@ -355,19 +342,11 @@ class CampaignParticipationTest(APITestCase):
             "username": "John",
             "password": "Qwerasdf1234!",
         }
-        date = timezone.now() + timedelta(seconds=random.randint(0, 86400))
-        cls.campaign_data = {
-            "title": "탄소발자국 캠페인 모집",
-            "content": "더 나은 세상을 위한 지구별 눈물 닦아주기, 이제 우리가 행동에 나설 때입니다.",
-            "members": "200",
-            "campaign_start_date": date,
-            "campaign_end_date": date,
-            "activity_start_date": date,
-            "activity_end_date": date,
-            "image": "",
-            "is_funding": "False",
-            "status": "1",
-        }
+        file_path = get_dummy_path('dummy_data.json')
+        with open(file_path, encoding="utf-8") as test_json:
+            test_dict = json.load(test_json)
+            cls.campaign_data = test_dict
+            test_json.close()
         temp_img = tempfile.NamedTemporaryFile()
         temp_img.name = "image.png"
         image_file = arbitrary_image(temp_img)
@@ -376,7 +355,7 @@ class CampaignParticipationTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data['user'] = User.objects.get(id=1)
+        cls.campaign_data["user"] = User.objects.get(id=1)
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
     def setUp(self):
@@ -388,7 +367,7 @@ class CampaignParticipationTest(APITestCase):
         """
         캠페인 참가 POST요청 테스트 함수입니다.
         """
-        campaign = Campaign.objects.get(title=self.campaign_data['title'])
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
         url = reverse("campaign_participation_view", kwargs={"campaign_id": campaign.id})
         response = self.client.post(
             path=url,
@@ -401,7 +380,7 @@ class CampaignParticipationTest(APITestCase):
         """
         캠페인 참가 취소 POST요청 테스트 함수입니다.
         """
-        campaign = Campaign.objects.get(title=self.campaign_data['title'])
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
         url = reverse("campaign_participation_view", kwargs={"campaign_id": campaign.id})
         response = self.client.post(
             path=url,
