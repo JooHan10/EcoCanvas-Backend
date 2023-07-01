@@ -122,18 +122,30 @@ class OrderProductSerializer(serializers.ModelSerializer):
     업데이트일 : 2023.06.27
     '''
     order_info = OrderDetailSerializer(
-        many=True, read_only=True)
+        many=True,
+        read_only=True
+    )
     order_date = serializers.SerializerMethodField()
     order_quantity = serializers.IntegerField(write_only=True)
-    product = serializers.IntegerField(write_only=True)
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=ShopProduct.objects.all(),
+        write_only=True
+    )
+    product_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ShopOrder
         fields = ['id', 'order_info', 'order_quantity', 'order_date', 'zip_code', 'address',
-                  'address_detail', 'address_message', 'receiver_name', 'receiver_number', 'user',  'order_totalprice', 'product']
+                  'address_detail', 'address_message', 'receiver_name', 'receiver_number', 'user',  'order_totalprice', 'product', 'product_name']
 
     def get_order_date(self, obj):
         return obj.order_date.strftime("%Y년 %m월 %d일 %R")
+
+    def get_product_name(self, obj):
+        order_info = obj.order_info.first()
+        if order_info:
+            return order_info.product.product_name
+        return None
 
     def validate_order_quantity(self, order_quantity):
         if order_quantity <= 0:

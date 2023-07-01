@@ -18,5 +18,7 @@ urlpatterns = [
          views.AdminOrderViewAPI.as_view(), name='admin_order_view'),
     path('mypage/order/', views.MypageOrderViewAPI.as_view(), name='my_order_view'),
     path('products/restock/<int:product_id>/', views.RestockNotificationViewAPI.as_view(),
-         name='restock_notification_view')
+         name='restock_notification_view'),
+    path('order/status/<int:order_id>/',
+         views.HandleOrderStatusViewAPI.as_view(), name='order_status_view')
 ]

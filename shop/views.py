@@ -2,15 +2,22 @@ from rest_framework.generics import get_object_or_404
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import ShopProduct, ShopCategory, ShopOrder, RestockNotification
+from .models import (
+    ShopProduct,
+    ShopCategory,
+    ShopOrder,
+    ShopOrderDetail,
+    RestockNotification
+)
 from .serializers import (
-    ProductListSerializer, CategoryListSerializer, OrderProductSerializer
+    ProductListSerializer,
+    CategoryListSerializer,
+    OrderProductSerializer
 )
 from config.permissions import IsAdminUserOrReadonly
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 from django.core.cache import cache
 from django.db import transaction
 
@@ -254,7 +261,7 @@ class AdminOrderViewAPI(APIView):
     업데이트 일자 :
     '''
     pagination_class = CustomPagination
-    permission_classes = [IsAdminUserOrReadonly]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
 
@@ -262,7 +269,6 @@ class AdminOrderViewAPI(APIView):
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(orders, request)
         serializer = OrderProductSerializer(result_page, many=True)
-
         return paginator.get_paginated_response(serializer.data)
 
 
@@ -304,3 +310,19 @@ class RestockNotificationViewAPI(APIView):
             return Response({"message": "이미 재입고 알림을 구독 하셨습니다."}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({"message": "상품이 품절되지 않았습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class HandleOrderStatusViewAPI(APIView):
+    '''
+    작성자 : 장소은
+    내용 : 작성자 페이지에서 상품 주문건의 상태 변경
+    작성일 : 2023.07.01
+    '''
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, order_id):
+        order = get_object_or_404(ShopOrderDetail, id=order_id)
+        order.order_detail_status = request.data.get('status')
+
+        order.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
