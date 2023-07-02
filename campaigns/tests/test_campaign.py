@@ -97,7 +97,7 @@ class CampaignReadTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 GET요청이 올바르게 이루어지는지 검증하는 테스트 클래스입니다.
     최초 작성일 : 2023.06.08
-    업데이트 일자 : 2023.06.15
+    업데이트 일자 : 2023.07.02
     """
 
     @classmethod
@@ -162,7 +162,7 @@ class CampaignDetailTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 특정캠페인 GET, UPDATE, DELETE 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.09
-    업데이트 일자 :
+    업데이트 일자 : 2023.07.02
     """
 
     @classmethod
@@ -189,7 +189,6 @@ class CampaignDetailTest(APITestCase):
             "image": "",
             "is_funding": "True",
             "status": "1",
-
             "goal": "1000000",
             "amount": "10000",
             "approve_file": "",
@@ -332,7 +331,7 @@ class CampaignParticipationTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 참가 POST 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.11
-    업데이트 일자 :
+    업데이트 일자 : 2023.07.02
     """
 
     @classmethod
