@@ -285,7 +285,7 @@ class CampaignParticipationView(APIView):
     내용 : 캠페인 유저 참가 View 입니다.
     캠페인에 대한 참가 POST 요청을 처리합니다.
     최초 작성일 : 2023.06.11
-    업데이트 일자 : 2023.06.16
+    업데이트 일자 : 2023.07.02
     """
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -298,6 +298,10 @@ class CampaignParticipationView(APIView):
 
     def post(self, request, campaign_id):
         queryset = get_object_or_404(Campaign, id=campaign_id)
+
+        participant_count = queryset.participant.count()
+        members = queryset.members
+
         if queryset.participant.filter(id=request.user.id).exists():
             queryset.participant.remove(request.user)
             is_participated = False
@@ -309,16 +313,21 @@ class CampaignParticipationView(APIView):
             participant.delete()
 
         else:
-            queryset.participant.add(request.user)
-            is_participated = True
-            message = "캠페인 참가 성공!"
-
-            participant = Participant.objects.create(
-                user=request.user,
-                campaign=queryset,
-                is_participated=True
+            if participant_count + 1 > members:
+                return Response(
+                {"message": "캠페인 참가 정원을 초과하여 신청할 수 없습니다."}, status=status.HTTP_400_BAD_REQUEST
             )
-            participant.save()
+            else:
+                queryset.participant.add(request.user)
+                is_participated = True
+                message = "캠페인 참가 성공!"
+
+                participant = Participant.objects.create(
+                    user=request.user,
+                    campaign=queryset,
+                    is_participated=True
+                )
+                participant.save()
 
         return Response({"is_participated": is_participated, "message": message}, status=status.HTTP_200_OK)
 

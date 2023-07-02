@@ -352,6 +352,7 @@ class CampaignParticipationTest(APITestCase):
         image_file = arbitrary_image(temp_img)
         image_file.seek(0)
         cls.campaign_data["image"] = image_file.name
+        cls.campaign_data["members"] = "1"
 
         cls.user = User.objects.create_user(**cls.user_data)
 
@@ -395,3 +396,30 @@ class CampaignParticipationTest(APITestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["message"], "캠페인 참가 취소!")
+
+    def test_max_participate_campaign(self):
+        """
+        캠페인 참가 정원이 이미 만석인데 신청한 경우 참가신청이 실패하는지 테스트하는 함수입니다.
+        """
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
+        url = reverse("campaign_participation_view", kwargs={"campaign_id": campaign.id})
+        response1 = self.client.post(
+            path=url,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response1.status_code, 200)
+        self.assertEqual(response1.data["message"], "캠페인 참가 성공!")
+
+        second_user_data = {
+            "email": "second@test.com",
+            "username": "Nue",
+            "password": "Qwerasdf1234!",
+        }
+        second_user = User.objects.create_user(**second_user_data)
+        access_token2 = self.client.post(reverse("log_in"), second_user_data).data["access"]
+        response2 = self.client.post(
+            path=url,
+            HTTP_AUTHORIZATION=f"Bearer {access_token2}",
+        )
+        self.assertEqual(response2.status_code, 400)
+        self.assertEqual(response2.data["message"], "캠페인 참가 정원을 초과하여 신청할 수 없습니다.")
