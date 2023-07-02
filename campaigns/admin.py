@@ -28,10 +28,6 @@ class CampaignDisplay(admin.ModelAdmin):
         "is_funding",
         "campaign_start_date",
         "campaign_end_date",
-        "activity_start_date",
-        "activity_end_date",
-        "created_at",
-        "updated_at",
         "tag_list",
     ]
     fields = [

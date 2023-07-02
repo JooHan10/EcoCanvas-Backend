@@ -41,7 +41,8 @@ class CampaignView(APIView):
         """
         end = self.request.query_params.get("end", None)
         order = self.request.query_params.get("order", None)
-        keyward = self.request.query_params.get("keyward", None)
+        keyword = self.request.query_params.get("keyword", None)
+        category = self.request.query_params.get("category", None)
         
         queryset = (
             Campaign.objects.select_related("user")
@@ -50,12 +51,6 @@ class CampaignView(APIView):
             .prefetch_related("participant")
             .all()
         )
-
-        if keyward:
-            queryset = queryset.filter(
-                Q(title__icontains=keyward) |
-                Q(content__icontains=keyward)
-            )
 
         if end == "N":
             queryset = queryset.filter(
@@ -77,6 +72,15 @@ class CampaignView(APIView):
         }
 
         queryset = orders_dict[order]
+
+        if keyword:
+            queryset = queryset.filter(
+                Q(title__icontains=keyword) |
+                Q(content__icontains=keyword)
+            )
+
+        if category:
+            queryset = queryset.filter(category=category)
 
         serializer = CampaignSerializer(queryset, many=True)
 
