@@ -11,7 +11,7 @@ class ShopCategory(models.Model):
     최초 작성일: 2023.06.06
     업데이트 일자:
     '''
-    category_name = models.CharField(max_length=30)
+    category_name = models.CharField(max_length=30, unique=True)
 
     def __str__(self):
         return str(self.category_name)

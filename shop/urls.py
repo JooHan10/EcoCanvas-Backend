@@ -12,6 +12,8 @@ urlpatterns = [
          name='admin_product_view'),
     path('categorys/list/', views.AdminCategoryViewAPI.as_view(),
          name='admin_category_view'),
+    path('categorys/list/<int:category_id>', views.AdminCategoryUpdateViewAPI.as_view(),
+         name='category_update_view'),
     path('products/order/',
          views.OrderProductViewAPI.as_view(), name='order_view'),
     path('order/list/',

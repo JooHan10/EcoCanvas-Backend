@@ -20,6 +20,7 @@ from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 from django.core.cache import cache
 from django.db import transaction
+from django.db import IntegrityError
 
 
 class CustomPagination(PageNumberPagination):
@@ -76,7 +77,7 @@ class ProductListViewAPI(APIView):
 class ProductCategoryListViewAPI(APIView):
     '''
     작성자:장소은
-    내용: 카테고리별 상품목록 정렬 및 검색 조회(조회순/높은금액/낮은금액/최신순) (일반,관리자) / 상품 등록(관리자) 
+    내용: 카테고리별 상품목록 정렬 및 검색 조회(조회순/높은금액/낮은금액/최신순) (일반,관리자) / 상품 등록(관리자)
     작성일: 2023.06.06
     업데이트일: 2023.06.120
     '''
@@ -133,7 +134,7 @@ class ProductDetailViewAPI(APIView):
     '''
     작성자:장소은
     내용: 카테고리별 상품 상세 조회/ 수정 / 삭제 (일반유저는 조회만)
-        세션과 쿠키를 이용하여 조회수 중복방지 
+        세션과 쿠키를 이용하여 조회수 중복방지
     작성일: 2023.06.06
     업데이트일: 2023.06.29
     '''
@@ -215,8 +216,14 @@ class AdminCategoryViewAPI(APIView):
     def post(self, request):
         serializer = CategoryListSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except IntegrityError:
+                return Response(
+                    {"message": "이미 존재하는 카테고리 이름입니다."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -275,7 +282,7 @@ class AdminOrderViewAPI(APIView):
 class MypageOrderViewAPI(APIView):
     '''
     작성자 : 장소은
-    내용 : 마이페이지에서 유저의 모든 주문내역 조회, 페이지네이션 
+    내용 : 마이페이지에서 유저의 모든 주문내역 조회, 페이지네이션
     최초 작성일 : 2023.06.14
     업데이트 일자 : 2023.06.18
     '''
@@ -326,3 +333,33 @@ class HandleOrderStatusViewAPI(APIView):
 
         order.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminCategoryUpdateViewAPI(APIView):
+    '''
+    작성자 : 장소은
+    내용 : 어드민 페이지에서 카테고리 수정, 삭제
+    작성일 : 2023.07.02
+    '''
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, category_id):
+        category = get_object_or_404(ShopCategory, id=category_id)
+        serializer = CategoryListSerializer(category, data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except IntegrityError:
+                return Response(
+                    {"message": "이미 존재하는 카테고리 이름입니다."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            print(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, category_id):
+        category = get_object_or_404(ShopCategory, id=category_id)
+        category.delete()
+        return Response({"message": "삭제 완료"}, status=status.HTTP_204_NO_CONTENT)
