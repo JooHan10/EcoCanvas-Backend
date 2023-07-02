@@ -34,6 +34,8 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.pagination import PageNumberPagination
 from json import JSONDecodeError
+import json
+from django.db import IntegrityError
 
 
 state = os.environ.get('STATE')
@@ -253,10 +255,10 @@ class KakaoCallbackView(APIView):
     내용 :  Kakao 로그인 콜백을 처리하는 APIView GET. Kakao 토큰 API에 POST 요청을 보냄.
             응답을 받아와서 JSON 형식으로 파싱하여 access_token추출
             응답 데이터에 'error' 키가 포함되어 있다면 에러처리.
-            그렇지 않은 경우는 access_token을 사용하여 Kakao API를 호출하여 사용자 정보를 가져옴 
+            그렇지 않은 경우는 access_token을 사용하여 Kakao API를 호출하여 사용자 정보를 가져옴
             try-except - 기존에 가입된 유저인지 체크
             User.DoesNotExist - 새로운 가입자 처리, 가입 처리 결과에 따라 응답을 생성
-            +) 사용자 예외처리 및 token 반환 로직 변경 
+            +) 사용자 예외처리 및 token 반환 로직 변경
     최초 작성일 : 2023.06.08
     업데이트 일자 : 2023.06.11
     '''
@@ -473,9 +475,10 @@ class UserProfileAPIView(APIView):
     '''
     작성자 : 장소은
     내용 : (기존) 작성된 로직은 유저의 프로필이 없다면 생성하도록 만들고 그에 해당하는 예외처리
-          (수정) signals.py에서 receiver를 통해 유저 생성 시 프로필 생성되도록 변경하고 그로 인해 불필요한 코드 삭제
+          +) signals.py에서 receiver를 통해 유저 생성 시 프로필 생성되도록 변경하고 그로 인해 불필요한 코드 삭제
+          +) 배송지수정 페이지와 회원정보 수정 모달을 따로 구현하게 변경됨에 따라 로직도 변경 
     작성일 : 2023.06.15
-    업데이트일 : 2023.06.21
+    업데이트일 : 2023.07.01
     '''
 
     permission_classes = [IsAuthenticated]
@@ -488,13 +491,25 @@ class UserProfileAPIView(APIView):
     def put(self, request):
         user_profile = UserProfile.objects.get(user=request.user)
         serializer = UserProfileSerializer(
-            instance=user_profile, data=request.data
+            instance=user_profile, data=request.data, partial=True
         )
         if serializer.is_valid():
+            user_data = request.data.get('user')
+            if user_data:  # 배송지 등록과 회원정보 수정 구분
+                username = json.loads(user_data).get('username')
+                try:
+                    user_profile.user.username = username
+                    user_profile.user.save()
+                except IntegrityError:
+                    return Response(
+                        {"message": "이미 존재하는 사용자 이름입니다."}, status=status.HTTP_400_BAD_REQUEST
+                    )
+
             serializer.save()
             return Response(
                 {"message": "회원정보 수정 완료!"}, status=status.HTTP_200_OK
             )
+
         return Response(
             serializer.errors, status=status.HTTP_400_BAD_REQUEST
         )
