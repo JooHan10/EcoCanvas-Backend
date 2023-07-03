@@ -7,7 +7,7 @@ import time
 from django.db import transaction
 from django.db.models import F
 import datetime
-
+from .cryption import CipherV1
 
 class RegisterPaymentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,7 +24,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     업데이트 날짜 : 2023.06.14
     '''
-    expiry_at = serializers.CharField(error_messages={
+    card_number = serializers.CharField(error_messages={
+        "required": "카드번호는 필수 입력 사항입니다!",
+        "blank" : "카드번호는 필수 입력 사항입니다!"
+    })
+    expiry = serializers.CharField(error_messages={
             "required": "유효기간은 필수 입력 사항입니다!",
             "blank": "유효기간은 필수 입력 사항입니다!"
         }, write_only=True)
@@ -38,40 +42,75 @@ class RegisterSerializer(serializers.ModelSerializer):
         }, write_only=True)
     class Meta:
         model = RegisterPayment
-        fields = ('created_at','customer_uid', 'card_number', 'expiry_at', 'birth', 'pwd_2digit')
+        fields = ('created_at','customer_uid', 'card_number', 'expiry', 'birth', 'pwd_2digit')
         
     def __init__(self, *args, **kwargs):
         self.user = kwargs['context']['request'].user
+        self.register_data = None
         super().__init__(*args, **kwargs)
     
-    def create(self, data):
-        iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
-        get_expiry = data.get('expiry_at')
-        birth = data.get('birth')
-        pwd_2digit = data.get('pwd_2digit')
-        email = self.context['request'].user.email
+    def validate_expiry(self,data):
+        if len(data) < 7 :
+            raise serializers.ValidationError("유효기간을 전부 입력해야합니다.")
+        return data
+    
+    def validate_birth(self,data):
+        if len(data) < 6 :
+            raise serializers.ValidationError("생년월일을 전부 입력해야합니다.")
+        return data
+    
+    def validate_pwd_2digit(self,data):
+        if len(data) < 2 :
+            raise serializers.ValidationError("비밀번호 두자리를 전부 입력해야합니다.")
+        return data
+    
+    def validate_card_number(self, data):
+        if len(data) < 19:
+            raise serializers.ValidationError("카드번호를 전부 입력해야 합니다.")
+        else:
+            number = data.replace('-', '')
+            cipher = CipherV1()
+            encrypted_card = cipher.encrypt(number)
+            exist_card_number = RegisterPayment.objects.filter(card_number=encrypted_card, user=self.user)
+            if exist_card_number:
+                raise serializers.ValidationError("이미 등록된 카드 번호입니다.")          
+        return data
+    
+    
+    def register(self, validated_data):
+        expiry = validated_data.get('expiry')
+        birth = validated_data.get('birth')
+        card_number = validated_data.get('card_number')
+        pwd_2digit = validated_data.get('pwd_2digit')
+        email = self.user.email
         customer_uid = f"{email}_{int(time.time())}"
-        response = iamport.customer_create(
-            customer_uid=customer_uid,
-            card_number=data['card_number'],
-            expiry=get_expiry,
-            birth=birth,
-            pg='nice',
-            pwd_2digit=pwd_2digit,
-        )
-        get_card_number = response.get('card_number')
-        get_customer_uid = response.get('customer_uid')
-        get_user = self.context['request'].user
-        exist_card_number = RegisterPayment.objects.filter(card_number=get_card_number, user=get_user)
+        response ={
+            'customer_uid':customer_uid,
+            'card_number':card_number,
+            'expiry':expiry,
+            'birth':birth,
+            'pg':'nice',
+            'pwd_2digit':pwd_2digit,
+        }
+        iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
+        self.register_data= iamport.customer_create(**response)
         
-        if exist_card_number:
-            raise serializers.ValidationError("이미 등록된 카드 번호입니다.")
-        payment = RegisterPayment.objects.create(
-            user=get_user,
-            card_number=get_card_number,
-            customer_uid=get_customer_uid            
-        )   
-        return payment
+        return self.register_data     
+    
+    def create(self, validated_data):
+        self.register(validated_data)
+        get_card_number = validated_data.get('card_number')
+        card_number = get_card_number.replace('-', '')
+        
+        cipher = CipherV1()
+        encrypted_card = cipher.encrypt(card_number)
+        response=RegisterPayment.objects.create(
+                    user=self.user,
+                    card_number=encrypted_card,
+                    customer_uid=self.register_data.get('customer_uid')           
+                )
+        return response
+        
     
 
 class PaymentScheduleSerializer(serializers.ModelSerializer):
@@ -93,7 +132,8 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
         
     def create(self, data):
         campaign = data.get('campaign')
-        campaign_date = campaign.campaign_end_date     
+        campaign_date = campaign.campaign_end_date
+        campaign_name = campaign.title     
         schedules_date_default = campaign_date.replace(tzinfo=None)
         schedules_date = schedules_date_default + datetime.timedelta(days=1)
         schedules_at = int(schedules_date.timestamp())
@@ -107,7 +147,9 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
             "schedule_at": schedules_at,
             "currency": "KRW",
             "amount": amount,
-            "name": user_id.username
+            "name": campaign_name,
+            "buyer_name": user_id.username,
+            "buyer_email": user_id.email,
         }
         payload = {
             'customer_uid': customer_uid,
