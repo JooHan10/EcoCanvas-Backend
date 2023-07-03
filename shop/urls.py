@@ -22,5 +22,6 @@ urlpatterns = [
     path('products/restock/<int:product_id>/', views.RestockNotificationViewAPI.as_view(),
          name='restock_notification_view'),
     path('order/status/<int:order_id>/',
-         views.HandleOrderStatusViewAPI.as_view(), name='order_status_view')
+         views.HandleOrderStatusViewAPI.as_view(), name='order_status_view'),
+    path('products/admin/refund/', views.SendRefundViewAPI.as_view(), name='refund_view' )
 ]

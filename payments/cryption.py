@@ -30,9 +30,8 @@ class CipherV1:
         내용 : 랜덤으로 생성된 nonce를 기반으로 암호화한다.
         최초 작성일 : 2023.06.29
         업데이트 일자 :
-        """
-        cipher = self.cipher()
-        print(cipher.nonce)
+        """ 
+        cipher = self.cipher()  
         cipher_text, tag = cipher.encrypt_and_digest(bytes(value, 'utf-8'))
         nonce = self._binary_to_base64str(cipher.nonce)
         cipher_text = self._binary_to_base64str(cipher_text)
@@ -47,9 +46,9 @@ class CipherV1:
         업데이트 일자 :
         """
         splitted_text = value.split(',')
-        nonce = self._base64str_to_binary(splitted_text[2])
-        cipher_text = self._base64str_to_binary(splitted_text[3])
-        tag = self._base64str_to_binary(splitted_text[4])
+        nonce = self._base64str_to_binary(splitted_text[0])
+        cipher_text = self._base64str_to_binary(splitted_text[1])
+        tag = self._base64str_to_binary(splitted_text[2])
         cipher = self.cipher(nonce)
         text = cipher.decrypt_and_verify(cipher_text, tag)
         return bytes.decode(text, 'utf-8')

@@ -7,7 +7,7 @@ import time
 from django.db import transaction
 from django.db.models import F
 import datetime
-
+from .cryption import CipherV1
 
 class RegisterPaymentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -69,8 +69,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("카드번호를 전부 입력해야 합니다.")
         else:
             number = data.replace('-', '')
-            get_card_number = f"{number[:8]}****{number[-4:]}"
-            exist_card_number = RegisterPayment.objects.filter(card_number=get_card_number, user=self.user)
+            cipher = CipherV1()
+            encrypted_card = cipher.encrypt(number)
+            exist_card_number = RegisterPayment.objects.filter(card_number=encrypted_card, user=self.user)
             if exist_card_number:
                 raise serializers.ValidationError("이미 등록된 카드 번호입니다.")          
         return data
@@ -98,9 +99,14 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         self.register(validated_data)
+        get_card_number = validated_data.get('card_number')
+        card_number = get_card_number.replace('-', '')
+        
+        cipher = CipherV1()
+        encrypted_card = cipher.encrypt(card_number)
         response=RegisterPayment.objects.create(
                     user=self.user,
-                    card_number=self.register_data.get('card_number'),
+                    card_number=encrypted_card,
                     customer_uid=self.register_data.get('customer_uid')           
                 )
         return response
@@ -126,7 +132,8 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
         
     def create(self, data):
         campaign = data.get('campaign')
-        campaign_date = campaign.campaign_end_date     
+        campaign_date = campaign.campaign_end_date
+        campaign_name = campaign.title     
         schedules_date_default = campaign_date.replace(tzinfo=None)
         schedules_date = schedules_date_default + datetime.timedelta(days=1)
         schedules_at = int(schedules_date.timestamp())
@@ -140,7 +147,9 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
             "schedule_at": schedules_at,
             "currency": "KRW",
             "amount": amount,
-            "name": user_id.username
+            "name": campaign_name,
+            "buyer_name": user_id.username,
+            "buyer_email": user_id.email,
         }
         payload = {
             'customer_uid': customer_uid,
