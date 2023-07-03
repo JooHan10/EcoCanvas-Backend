@@ -53,13 +53,12 @@ def send_daily_notifications():
             participant.campaign.activity_start_date - current_datetime).days
         message = {
             'type': 'notification_message',
-            'message' : f'{participant.campaign.title} 캠페인 시작까지 {days_remain}일 남았습니다.',
+            'message': f'{participant.campaign.title} 캠페인 시작까지 {days_remain}일 남았습니다.',
         }
         async_to_sync(channel_layer.group_send)("notification_group", {
             'type': 'notification_message',
             'message': json.dumps(message)
         })
-
 
         # 알림 레코드 생성
         notification = Notification.objects.create(
@@ -84,58 +83,24 @@ register_events(scheduler)
 scheduler.start()
 
 
-# def send_logout_user_notifications():
-#     '''
-#     작성자 : 장소은
-#     내용 : 로그아웃한 사용자에게 캠페인 시작일 관련 알림 저장
-#     작성일 : 2023.06.25
-#     '''
-#     current_datetime = timezone.now()
-#     campaign_start_date = current_datetime + timedelta(days=3)
-#     participants = Participant.objects.filter(
-#         is_participated=True,
-#         campaign__activity_start_date__range=(
-#             current_datetime, campaign_start_date),
-#         user__last_logout__isnull=False  # 로그아웃 사용자 필터링
-#     )
-#     for participant in participants:
-#         days_remain = (
-#             participant.campaign.activity_start_date - current_datetime).days
-
-#         # 알림 생성 및 저장
-#         notification = Notification.objects.create(
-#             user=participant.user,
-#             message=f'{participant.campaign.title} 캠페인 시작까지 {days_remain}일 남았습니다.'
-#         )
-#         notification.save()
-
-
-# def logout_user_notifications():
-#     scheduler.add_job(send_logout_user_notifications,
-#                       'interval', seconds=24 * 60 * 60)
-
-
-# logout_user_notifications()
-
-
-# @receiver(user_logged_in)
-# def handle_user_logged_in(sender, request, user, **kwargs):
-#     '''
-#     작성자 : 장소은
-#     내용 : 로그인 시 읽지 않은 알림을 사용자에게 알려줌
-#     작성일 : 2023.06.25
-#     '''
-#     unread_notifications = Notification.objects.filter(
-#         user=user, is_read=False)
-#     for unread in unread_notifications:
-#         message = {
-#             'type': 'notification_message',
-#             'message': f'읽지 않은 알림이 있습니다.',
-#         }
-#         async_to_sync(channel_layer.group_send)("notification_login_group", {
-#             'type': 'notification_message',
-#             'message': json.dumps(message)
-#         })
+@receiver(user_logged_in)
+def handle_user_logged_in(sender, request, user, **kwargs):
+    '''
+    작성자 : 장소은
+    내용 : 로그인 시 읽지 않은 알림을 사용자에게 알려줌
+    작성일 : 2023.06.25
+    '''
+    unread_notifications = Notification.objects.filter(
+        user=user, is_read=False)
+    for unread in unread_notifications:
+        message = {
+            'type': 'notification_message',
+            'message': f'읽지 않은 알림이 있습니다.',
+        }
+        async_to_sync(channel_layer.group_send)("notification_login_group", {
+            'type': 'notification_message',
+            'message': json.dumps(message)
+        })
 
 
 @receiver(post_save, sender=ShopProduct)

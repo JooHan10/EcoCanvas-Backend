@@ -212,16 +212,16 @@ class GoogleCallbackView(APIView):
         email = user_data_json.get("email")
         username = user_data_json.get("name")
         social = "google"
-        
+
         try:
             user = User.objects.get(email=email)
             social_user = SocialAccount.objects.get(user=user)
-            
+
             if social_user is None:
                 return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(일반 회원가입 계정입니다.)'}, status=status.HTTP_400_BAD_REQUEST)
             if social_user.provider != 'google':
                 return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(다른 소셜 계정으로 가입하셨습니다.)'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
             refresh["login_type"] = user.login_type
@@ -236,7 +236,8 @@ class GoogleCallbackView(APIView):
             user = User.objects.create_user(email=email, username=username)
             user.set_unusable_password()
             user.save()
-            SocialAccount.objects.create(user=user, provider=social, uid=username+'(Google)')
+            SocialAccount.objects.create(
+                user=user, provider=social, uid=username+'(Google)')
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
             refresh["login_type"] = social
