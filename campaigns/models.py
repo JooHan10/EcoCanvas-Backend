@@ -1,40 +1,18 @@
 from django.db import models
 from users.models import User
 from django.urls import reverse
-
-
-class BaseModel(models.Model):
-    """
-    작성자 : 최준영
-    내용 : 베이스 모델입니다.
-    중복되는 Field인 created_at과 updated_at을
-    상속시킬 추상화 클래스입니다.
-    최초 작성일 : 2023.06.07
-    업데이트 일자 :
-    """
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
+from config.models import BaseModel
+from taggit.managers import TaggableManager
 
 
 class Campaign(BaseModel):
     """
     작성자 : 최준영
-    내용 : 캠페인에 대한 기본 모델입니다.
+    내용 : 캠페인 모델 클래스입니다.
     is_funding의 BooleanField로 펀딩 여부를 체크하고
     status의 ChoiceField로 캠페인의 진행 상태를 체크합니다.
-    status가 0일 때는 캠페인이 게시되지 않고, 1가 되었을 때 캠페인이 게시된 후,
-    캠페인 기간이 시작된 날짜부터 프론트에 렌더링됩니다.
-    캠페인이 정상 종료되었다면 2로 바뀌고, 캠페인이 펀딩에 실패했다면 3으로 바뀝니다.
-    글 게시 시, 활동이 없는 캠페인모금만 있다면 비워놔도 좋다고 써줘야할 것 같습니다
-    is_funding이 False라면 Backoffice 검토 없이 그냥 게시해보는 것도 좋을 것 같아요
-
-    캠페인 참여 구현완료
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.17
+    업데이트 일자 : 2023.06.29
     """
 
     class Meta:
@@ -45,6 +23,13 @@ class Campaign(BaseModel):
         (1, "캠페인 모집중"),
         (2, "캠페인 종료"),
         (3, "캠페인 실패"),
+    )
+    CATEGORY_CHOICES = (
+        (0, "봉사"),
+        (1, "교육"),
+        (2, "투자"),
+        (3, "이벤트"),
+        (4, "환경운동"),
     )
 
     user = models.ForeignKey(User, verbose_name="작성자",
@@ -65,6 +50,9 @@ class Campaign(BaseModel):
     is_funding = models.BooleanField("펀딩여부", default=False)
     status = models.PositiveSmallIntegerField(
         "진행 상태", choices=STATUS_CHOICES, default=0)
+    category = models.PositiveSmallIntegerField(
+        "카테고리", choices=CATEGORY_CHOICES)
+    tags = TaggableManager(blank=True)
 
     def __str__(self):
         return str(self.title)

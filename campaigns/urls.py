@@ -3,6 +3,7 @@ from campaigns import views
 
 urlpatterns = [
     path('', views.CampaignView.as_view(), name='campaign_view'),
+    path('tag/',views.TagFilterView.as_view(), name='tag_filter_view'),
     path('create/', views.CampaignView.as_view(), name='campaign_view'),
     path('<int:campaign_id>/', views.CampaignDetailView.as_view(),
          name='campaign_detail_view'),
@@ -13,11 +14,11 @@ urlpatterns = [
     path('review/<int:campaign_id>/', views.CampaignReviewView.as_view(),
          name='campaign_review_view'),
     path('review/detail/<int:review_id>/',
-         views.CampaignReviewDetailView.as_view(), name='campaign_review_detail_view'),
+         views.CampaignReviewView.as_view(), name='campaign_review_detail_view'),
     path('comment/<int:campaign_id>/',
          views.CampaignCommentView.as_view(), name='campaign_comment_view'),
     path('comment/detail/<int:comment_id>/',
-         views.CampaignCommentDetailView.as_view(), name='campaign_comment_detail_view'),
+         views.CampaignCommentView.as_view(), name='campaign_comment_detail_view'),
     path('mypage/participant/', views.ParticipatingCampaignView.as_view(),
          name='participating_campaign'),
     path('mypage/review/', views.CampaignUserReviewView.as_view(),
