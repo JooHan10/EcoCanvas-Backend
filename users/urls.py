@@ -27,6 +27,8 @@ urlpatterns = [
 
     # 로그인
     path('login/', views.CustomTokenObtainPairView.as_view(), name='log_in'),
+    path('login/refresh/', views.CustomTokenRefreshView.as_view(), name='token_refresh'),
+    
     path('list/', views.UserListView().as_view(), name='user_list'),
     path('<int:user_id>/', views.UserDetailView().as_view(), name='user'),
 

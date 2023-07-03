@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from users.serializers import (
     SignUpSerializer,
     SendSignupEmailSerializer,
@@ -36,7 +36,6 @@ from rest_framework.pagination import PageNumberPagination
 from json import JSONDecodeError
 import json
 from django.db import IntegrityError
-
 
 state = os.environ.get('STATE')
 kakao_callback_uri = os.environ.get('KAKAO_CALLBACK_URI')
@@ -77,6 +76,7 @@ class SignUpView(APIView):
         verification_code = VerificationCodeGenerator.verification_code(
             request.data['email'], request.data['time_check'])
         check_code = request.data.get('check_code')
+        
         if verification_code == check_code:
             serializer = SignUpSerializer(data=request.data)
             if serializer.is_valid():
@@ -84,9 +84,9 @@ class SignUpView(APIView):
                 return Response({"message": "가입완료!"}, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        elif check_code == "":
+        elif check_code == False:
             return Response({"empty": "인증코드를 입력해주세요!"}, status=status.HTTP_400_BAD_REQUEST)
-        else:
+        elif verification_code != check_code:
             return Response({"not_match": "잘못된 인증코드입니다!"}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -127,6 +127,16 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     '''
     permission_classes = [AllowAny]
     serializer_class = CustomTokenObtainPairSerializer
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    '''
+    작성자 : 이주한
+    내용 : TokenRefreshView를 상속받아 JWT access 토큰 갱신에 사용되는 CustomTokenRefreshView 입니다.
+    최초 작성일 : 2023.07.03
+    업데이트 일자 :
+    '''
+    permission_classes = [AllowAny]
 
 
 class CustomRefreshToken(RefreshToken):
@@ -212,19 +222,19 @@ class GoogleCallbackView(APIView):
         email = user_data_json.get("email")
         username = user_data_json.get("name")
         social = "google"
-        
+
         try:
             user = User.objects.get(email=email)
             social_user = SocialAccount.objects.get(user=user)
-            
+
             if social_user is None:
                 return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(일반 회원가입 계정입니다.)'}, status=status.HTTP_400_BAD_REQUEST)
             if social_user.provider != 'google':
                 return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(다른 소셜 계정으로 가입하셨습니다.)'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
-            refresh["login_type"] = user.login_type
+            refresh["login_type"] = social
             return Response(
                 {
                     "refresh": str(refresh),
@@ -236,7 +246,8 @@ class GoogleCallbackView(APIView):
             user = User.objects.create_user(email=email, username=username)
             user.set_unusable_password()
             user.save()
-            SocialAccount.objects.create(user=user, provider=social, uid=username+'(Google)')
+            SocialAccount.objects.create(
+                user=user, provider=social, uid=username+'(Google)')
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
             refresh["login_type"] = social

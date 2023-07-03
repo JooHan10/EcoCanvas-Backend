@@ -3,6 +3,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from chat.models import Room, Message
 from users.models import User
+from alarms.signals import send_admin_notifications
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -23,7 +24,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message_creat = await sync_to_async(Message.objects.create)(
             user_id=user_contact, room_id=room_contact, message=data["message"]
         )
-        
+
         message = await sync_to_async(self.message_to_json)(message_creat)
         content = {
             "command": "new_message",
@@ -33,6 +34,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         is_active = not self.user.is_staff
         await self.room_set_activate(room_contact, is_active)
+
+        if is_active and self.is_alarm:
+            await send_admin_notifications(room_id)
+            self.is_alarm = False
 
     def message_to_json(self, message):
         return {
@@ -44,7 +49,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def room_set_activate(self, room, active):
         room.is_active = active
         await sync_to_async(room.save)()
-
 
     commands = {"new_message": new_message}
 
@@ -59,6 +63,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
         self.user = self.scope['user']
         self.room_group_name = "chat_%s" % self.room_name
+        if not self.user.is_staff:
+            self.is_alarm = True
 
         await self.channel_layer.group_add(
             self.room_group_name, self.channel_name
@@ -78,7 +84,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         업데이트 일자 : 2023.06.15
         #06.15 : 동기 기반 클레스에서 비동기 기반으로 변경
         """
-
+        self.is_alarm = False
         if self.user.is_staff:
             room = await sync_to_async(Room.objects.get)(id=self.room_name)
             room.counselor = None

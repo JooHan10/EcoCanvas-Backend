@@ -11,7 +11,7 @@ class CipherV1:
     업데이트 일자 :
     """
 
-    def cipher(self, nonce=b"YT^ \xb7D\x92N\xbba\xea\xe9u\xab\xe1\xb9"):
+    def cipher(self, nonce=None):
         """
         작성자 : 박지홍
         내용 : 암호화 모듈을 만들어주며 이때 암호화 시 인자값이 없으면 nonce값을 랜덤으로 생성하게 해준다.
