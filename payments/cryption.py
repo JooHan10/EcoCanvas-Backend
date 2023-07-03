@@ -32,7 +32,6 @@ class CipherV1:
         업데이트 일자 :
         """
         cipher = self.cipher()
-        print(cipher.nonce)
         cipher_text, tag = cipher.encrypt_and_digest(bytes(value, 'utf-8'))
         nonce = self._binary_to_base64str(cipher.nonce)
         cipher_text = self._binary_to_base64str(cipher_text)
