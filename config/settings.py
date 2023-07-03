@@ -287,3 +287,5 @@ CSRF_TRUSTED_ORIGINS = [
     FRONT_BASE_URL,
     BASE_URL,
 ]
+
+CIPHER_V1_KEY = os.environ.get('CIPHER_V1_KEY')

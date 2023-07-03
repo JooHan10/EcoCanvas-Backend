@@ -11,6 +11,8 @@ from django.utils import timezone
 import threading
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 import hashlib
+import re
+
 
 class EmailThread(threading.Thread):
     '''
@@ -158,18 +160,19 @@ class SendSignupEmailSerializer(serializers.Serializer):
         }
     )
     time_check = serializers.IntegerField()
-    
+
     class Meta:
         fields = ("email", "date")
 
     def validate(self, attrs):
         email = attrs.get("email")
         time_check = attrs.get("time_check")
-        verification_code = VerificationCodeGenerator.verification_code(email, time_check)
-        
+        verification_code = VerificationCodeGenerator.verification_code(
+            email, time_check)
+
         try:
             User.objects.get(email=email)
-            
+
             raise serializers.ValidationError(
                 detail={"email": "이미 존재하는 계정의 이메일 주소입니다."})
 
@@ -498,5 +501,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'receiver_number': {'required': False}
         }
 
+    def validate_receiver_number(self, receiver_number):
+        if not isinstance(receiver_number, str):
+            raise serializers.ValidationError(
+                "유효한 연락처를 입력해주세요! 예시: 010-1234-5678")
+        if not re.match(r'^\d{3}-\d{3,4}-\d{4}$', receiver_number):
+            raise serializers.ValidationError(
+                "유효한 연락처를 입력해주세요! 예시: 010-1234-5678")
+        return receiver_number
 
-
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        receiver_number = validated_data.get('receiver_number')
+        if receiver_number:
+            receiver_number = self.validate_receiver_number(receiver_number)
+            setattr(instance, 'receiver_number', receiver_number)
+        instance.save()
+        return instance

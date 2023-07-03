@@ -2,15 +2,25 @@ from rest_framework.generics import get_object_or_404
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import ShopProduct, ShopCategory, ShopOrder, RestockNotification
+from .models import (
+    ShopProduct,
+    ShopCategory,
+    ShopOrder,
+    ShopOrderDetail,
+    RestockNotification
+)
 from .serializers import (
-    ProductListSerializer, CategoryListSerializer, OrderProductSerializer
+    ProductListSerializer,
+    CategoryListSerializer,
+    OrderProductSerializer
 )
 from config.permissions import IsAdminUserOrReadonly
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
+from django.core.cache import cache
+from django.db import transaction
+from django.db import IntegrityError
 
 
 class CustomPagination(PageNumberPagination):
@@ -67,7 +77,7 @@ class ProductListViewAPI(APIView):
 class ProductCategoryListViewAPI(APIView):
     '''
     작성자:장소은
-    내용: 카테고리별 상품목록 정렬 및 검색 조회(조회순/높은금액/낮은금액/최신순) (일반,관리자) / 상품 등록(관리자) 
+    내용: 카테고리별 상품목록 정렬 및 검색 조회(조회순/높은금액/낮은금액/최신순) (일반,관리자) / 상품 등록(관리자)
     작성일: 2023.06.06
     업데이트일: 2023.06.120
     '''
@@ -124,24 +134,37 @@ class ProductDetailViewAPI(APIView):
     '''
     작성자:장소은
     내용: 카테고리별 상품 상세 조회/ 수정 / 삭제 (일반유저는 조회만)
+        세션과 쿠키를 이용하여 조회수 중복방지
     작성일: 2023.06.06
-    업데이트일: 2023.06.
+    업데이트일: 2023.06.29
     '''
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, product_id):
         product = get_object_or_404(ShopProduct, id=product_id)
-        serializer = ProductListSerializer(product)
-        product.hits += 1
-        product.save()
 
+        session_key = request.session.session_key
+        viewed_products = cache.get(f"viewed_products_{session_key}", set())
+
+        if product_id not in viewed_products:
+            product.hits += 1
+            product.save()
+
+        viewed_products.add(product_id)
+        cache.set(f"viewed_products_{session_key}",
+                  viewed_products, timeout=86400)
+
+        serializer = ProductListSerializer(product)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, product_id):
-        self.permission_classes = [IsAdminUser]
+        if not request.user.is_admin:
+            return Response({"message": "관리자만 수정할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
+
         product = get_object_or_404(ShopProduct, id=product_id)
         serializer = ProductListSerializer(
             product, data=request.data, partial=True)
+
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -149,7 +172,8 @@ class ProductDetailViewAPI(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, product_id):
-        self.permission_classes = [IsAdminUser]
+        if not request.user.is_admin:
+            return Response({"message": "관리자만 수정할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
 
         product = get_object_or_404(ShopProduct, id=product_id)
         product.delete()
@@ -192,8 +216,14 @@ class AdminCategoryViewAPI(APIView):
     def post(self, request):
         serializer = CategoryListSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except IntegrityError:
+                return Response(
+                    {"message": "이미 존재하는 카테고리 이름입니다."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -201,26 +231,33 @@ class AdminCategoryViewAPI(APIView):
 class OrderProductViewAPI(APIView):
     '''
     작성자 : 장소은
-    내용 : 해당 상품에 대한 주문 생성 / 사용자가 proudct_id에 해당하는 상품 목록 조회 
+    내용 : 해당 상품에 대한 주문 생성(+다중 주문), 트랜잭션을 이용하여 모든 주문이 유효성 검사를 통과해야 db저장 되도록 개선
     최초 작성일 : 2023.06.13
-    업데이트 일자 :
+    업데이트일 : 2023.06.30
     '''
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, product_id):
-        orders = ShopOrder.objects.filter(
-            user=request.user.id, product_id=product_id)
-        serializer = OrderProductSerializer(orders, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def post(self, request):
+        orders = request.data.get('orders', [])
+        valid_orders = []
 
-    def post(self, request, product_id):
-        product = get_object_or_404(ShopProduct, id=product_id)
-        serializer = OrderProductSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(product=product)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            for order_data in orders:
+                product_id = order_data.get('product')
+                product = get_object_or_404(ShopProduct, id=product_id)
+                serializer = OrderProductSerializer(data=order_data)
+                if serializer.is_valid():
+                    valid_orders.append((serializer, product))
+                else:
+                    print(serializer.errors)
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            order_list = []
+            for serializer, product in valid_orders:
+                serializer.save(product=product)
+                order_list.append(serializer.data)
+
+            return Response(order_list, status=status.HTTP_201_CREATED)
 
 
 class AdminOrderViewAPI(APIView):
@@ -231,7 +268,7 @@ class AdminOrderViewAPI(APIView):
     업데이트 일자 :
     '''
     pagination_class = CustomPagination
-    permission_classes = [IsAdminUserOrReadonly]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
 
@@ -239,14 +276,13 @@ class AdminOrderViewAPI(APIView):
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(orders, request)
         serializer = OrderProductSerializer(result_page, many=True)
-
         return paginator.get_paginated_response(serializer.data)
 
 
 class MypageOrderViewAPI(APIView):
     '''
     작성자 : 장소은
-    내용 : 마이페이지에서 유저의 모든 주문내역 조회, 페이지네이션 
+    내용 : 마이페이지에서 유저의 모든 주문내역 조회, 페이지네이션
     최초 작성일 : 2023.06.14
     업데이트 일자 : 2023.06.18
     '''
@@ -281,3 +317,49 @@ class RestockNotificationViewAPI(APIView):
             return Response({"message": "이미 재입고 알림을 구독 하셨습니다."}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({"message": "상품이 품절되지 않았습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class HandleOrderStatusViewAPI(APIView):
+    '''
+    작성자 : 장소은
+    내용 : 작성자 페이지에서 상품 주문건의 상태 변경
+    작성일 : 2023.07.01
+    '''
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, order_id):
+        order = get_object_or_404(ShopOrderDetail, id=order_id)
+        order.order_detail_status = request.data.get('status')
+
+        order.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminCategoryUpdateViewAPI(APIView):
+    '''
+    작성자 : 장소은
+    내용 : 어드민 페이지에서 카테고리 수정, 삭제
+    작성일 : 2023.07.02
+    '''
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, category_id):
+        category = get_object_or_404(ShopCategory, id=category_id)
+        serializer = CategoryListSerializer(category, data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except IntegrityError:
+                return Response(
+                    {"message": "이미 존재하는 카테고리 이름입니다."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            print(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, category_id):
+        category = get_object_or_404(ShopCategory, id=category_id)
+        category.delete()
+        return Response({"message": "삭제 완료"}, status=status.HTTP_204_NO_CONTENT)
