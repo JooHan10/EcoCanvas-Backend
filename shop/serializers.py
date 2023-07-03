@@ -122,18 +122,30 @@ class OrderProductSerializer(serializers.ModelSerializer):
     업데이트일 : 2023.06.27
     '''
     order_info = OrderDetailSerializer(
-        many=True, read_only=True)
+        many=True,
+        read_only=True
+    )
     order_date = serializers.SerializerMethodField()
     order_quantity = serializers.IntegerField(write_only=True)
-    product = serializers.IntegerField(write_only=True)
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=ShopProduct.objects.all(),
+        write_only=True
+    )
+    product_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ShopOrder
         fields = ['id', 'order_info', 'order_quantity', 'order_date', 'zip_code', 'address',
-                  'address_detail', 'address_message', 'receiver_name', 'receiver_number', 'user',  'order_totalprice', 'product']
+                  'address_detail', 'address_message', 'receiver_name', 'receiver_number', 'user',  'order_totalprice', 'product', 'product_name']
 
     def get_order_date(self, obj):
         return obj.order_date.strftime("%Y년 %m월 %d일 %R")
+
+    def get_product_name(self, obj):
+        order_info = obj.order_info.first()
+        if order_info:
+            return order_info.product.product_name
+        return None
 
     def validate_order_quantity(self, order_quantity):
         if order_quantity <= 0:
@@ -172,22 +184,23 @@ class OrderProductSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         order_quantity = validated_data.pop('order_quantity', [])
         product_key = validated_data.pop('product', [])
-
         order_quantity = self.validate_order_quantity(order_quantity)
         receiver_number = self.validate_receiver_number(
             validated_data.get('receiver_number'))
 
         product = self.get_product_instance(product_key)
+        self.validate_product_stock(product, order_quantity)  # 재고 유효성 검사
+        self.update_product_stock(product, order_quantity)
 
-        if product.product_stock >= order_quantity:
-            self.update_product_stock(product, order_quantity)
+        order = ShopOrder.objects.create(**validated_data)
+        self.create_order_detail(order, product, order_quantity)
 
-            order = ShopOrder.objects.create(**validated_data)
-            self.create_order_detail(order, product, order_quantity)
+        return order
 
-            return order
-        else:
-            raise serializers.ValidationError("상품 재고가 주문 수량보다 적습니다.")
+    def validate_product_stock(self, product, order_quantity):
+        if product.product_stock < order_quantity:
+            raise serializers.ValidationError(
+                f"{product}의 상품 재고가 주문 수량보다 적습니다.")
 
 
 class RestockNotificationSerializer(serializers.ModelSerializer):
