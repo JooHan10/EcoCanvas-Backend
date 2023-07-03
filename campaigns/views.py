@@ -28,7 +28,7 @@ class CampaignView(APIView):
     작성자 : 최준영
     내용 : 캠페인 View 클래스 입니다.
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.19
+    업데이트 일자 : 2023.07.03
     """
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -76,8 +76,10 @@ class CampaignView(APIView):
         if keyword:
             queryset = queryset.filter(
                 Q(title__icontains=keyword) |
-                Q(content__icontains=keyword)
-            )
+                Q(content__icontains=keyword) |
+                Q(tags__name__icontains=keyword) |
+                Q(user__username__icontains=keyword)
+            ).distinct()
 
         if category:
             queryset = queryset.filter(category=category)
@@ -97,10 +99,10 @@ class CampaignView(APIView):
         캠페인 POST요청 함수입니다.
         is_funding이 True라면 펀딩정보를 같이 POST하는 방식으로 모듈화 했습니다.
         """
-        if request.data["is_funding"] == "false":
-            return self.create_campaign(request)
-        else:
+        if request.data["is_funding"] == "true":
             return self.create_campaign_with_funding(request)
+        else:
+            return self.create_campaign(request)
 
     def create_campaign(self, request):
         """
@@ -157,7 +159,7 @@ class CampaignDetailView(APIView):
     내용 : 캠페인 디테일 View 입니다.
     개별 캠페인 GET과 그 캠페인에 대한 PUT, DELETE 요청을 처리합니다.
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.30
+    업데이트 일자 : 2023.07.03
     """
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -176,10 +178,10 @@ class CampaignDetailView(APIView):
         캠페인 PUT 요청 함수입니다.
         is_funding이 True라면 펀딩정보를 같이 PUT하는 방식으로 모듈화 했습니다.
         """
-        if request.data["is_funding"] == "false":
-            return self.update_campaign(request, campaign_id)
-        else:
+        if request.data["is_funding"] == "true":
             return self.update_campaign_with_funding(request, campaign_id)
+        else:
+            return self.update_campaign(request, campaign_id)
 
     def update_campaign(self, request, campaign_id):
         """
@@ -332,12 +334,12 @@ class CampaignParticipationView(APIView):
         return Response({"is_participated": is_participated, "message": message}, status=status.HTTP_200_OK)
 
 
-class CampaignStatusChecker():
+class CampaignStatusChecker:
     """
     작성자 : 최준영
     내용 : scheduler를 통해 관리할 캠페인 함수 클래스입니다.
     최초 작성일 : 2023.06.08
-    업데이트 일자 : 2023.06.30
+    업데이트 일자 : 2023.07.03
     """
     def check_campaign_status():
         """
@@ -357,8 +359,10 @@ class CampaignStatusChecker():
         종료된 캠페인의 펀딩 성공여부를 판단해 펀딩에 실패한 캠페인의 
         status를 3으로 바꿉니다.
         """
-        now = timezone.now()
-        campaigns = Campaign.objects.filter(status=2).filter(fundings__amount__lt=F("fundings__goal"))
+        campaigns = Campaign.objects.filter(
+            Q(status=2) & 
+            Q(fundings__amount__lt=F("fundings__goal"))
+        )
 
         for campaign in campaigns:
             campaign.status = 3

@@ -1,22 +1,8 @@
 from django.db import models
 from users.models import User
 from django.urls import reverse
+from config.models import BaseModel
 from taggit.managers import TaggableManager
-
-
-class BaseModel(models.Model):
-    """
-    작성자 : 최준영
-    내용 : created_at과 updated_at을 상속시킬 추상화 클래스입니다.
-    최초 작성일 : 2023.06.07
-    업데이트 일자 :
-    """
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
 
 
 class Campaign(BaseModel):
