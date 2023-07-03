@@ -15,7 +15,7 @@ from shop.models import RestockNotification, ShopProduct
 channel_layer = get_channel_layer()
 
 
-def send_admin_notifications(room_id):
+async def send_admin_notifications(room_id):
     '''
     작성자 : 장소은
     내용 : 채팅 룸이 생성되고 상담이 진행중이지 않은 채팅 룸에 대해서 관리자에게 실시간 알림 기능 
@@ -26,7 +26,7 @@ def send_admin_notifications(room_id):
         'room_id': room_id,
         'message': '새로운 채팅요청이 있습니다.',
     }
-    async_to_sync(channel_layer.group_send)("notification_admin_group", {
+    await channel_layer.group_send("notification_admin_group", {
         'type': 'send_admin_notification',
         'message': json.dumps(message)
     })
@@ -71,7 +71,6 @@ scheduler = BackgroundScheduler()
 
 scheduler.add_jobstore(DjangoJobStore(), "djangojobstore")
 
-# scheduler.add_job(send_daily_notifications, 'interval', minutes=1)  # 테스트용
 scheduler.add_job(send_daily_notifications,
                   'cron',
                   hour=18
