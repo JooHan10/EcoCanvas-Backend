@@ -50,7 +50,9 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.kakao',
     'allauth.socialaccount.providers.google',
+
     'django_apscheduler',
+    'taggit',
 ]
 
 # 웹사이트 복수 생성시 사이트 지정을 위해 필요
@@ -203,7 +205,7 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=65),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -228,7 +230,7 @@ SIMPLE_JWT = {
 
 JWT_AUTH = {
     'JWT_ALLOW_REFRESH': True,
-    'JWT_EXPIRATION_DELTA': timedelta(minutes=65),
+    'JWT_EXPIRATION_DELTA': timedelta(minutes=60),
     'JWT_REFRESH_EXPIRATION_DELTA': timedelta(days=14),
     'JWT_COOKIE_SECURE': True,
     'JWT_COOKIE_SAMESITE': 'Lax',
@@ -309,5 +311,8 @@ CSRF_TRUSTED_ORIGINS = [
     FRONT_BASE_URL,
     BASE_URL,
 ]
+
+TAGGIT_CASE_INSENSITIVE = True
+TAGGIT_LIMIT = 50
 
 CIPHER_V1_KEY = os.environ.get('CIPHER_V1_KEY')

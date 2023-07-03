@@ -7,7 +7,6 @@ from rest_framework.permissions import IsAuthenticated
 from collections import Counter
 from chat.serializers import RoomSerializer, MessageSerializer
 from django.db.models import Q
-from alarms.signals import send_admin_notifications
 
 
 class RoomView(APIView):
@@ -25,7 +24,6 @@ class RoomView(APIView):
 
         room = Room.objects.filter(advisee=request.user).values('id').first()
         if room:
-            send_admin_notifications(room['id'])
             return Response(room, status=status.HTTP_201_CREATED)
         else:
             return Response(None, status=status.HTTP_400_BAD_REQUEST)
