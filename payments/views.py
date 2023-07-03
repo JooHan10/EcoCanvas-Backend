@@ -48,7 +48,6 @@ class RegisterCustomerView(APIView):
         '''
         register_payments = RegisterPayment.objects.filter(user=request.user)
         serializer = RegisterPaymentSerializer(register_payments, many=True)
-        print('조회',serializer.data)
         cipher = CipherV1()
         for payment in serializer.data:
             card_number = payment['card_number']
@@ -91,15 +90,11 @@ class CreatePaymentScheduleView(APIView):
         업데이트 날짜 : 2023.06.21
         '''
         iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
-        print(request.data)
         receipts = Payment.objects.get(user=request.user.id, pk=pk)
         merchant_uid = receipts.merchant_uid
-        print(merchant_uid)
         response = iamport.pay_schedule_get(merchant_uid)
-        print(response)   
         response_schedule = response['schedule_at']
         reservation_schedule = datetime.datetime.fromtimestamp(response_schedule)
-        print(reservation_schedule)
         campaign = response['name']
         buyer = response['buyer_name']
         amount =response['amount']
@@ -159,7 +154,7 @@ class DetailReciptAPIView(APIView):
         작성자: 송지명
         작성일: 2023.06.18
         작성내용: 결제 상세 영수증
-        업데이트 일자 : 2023.06.20
+        업데이트 일자 : 2023.07.03
         '''
         iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
         detail_receipt = Payment.objects.get(pk=pk)
@@ -209,7 +204,7 @@ class DetailScheduleReceiptAPIView(APIView):
     작성자 : 송지명
     작성일 : 2023.06.12
     작성내용 : 예약결제 후 영수증 정보
-    업데이트 날짜 : 2023.06.20
+    업데이트 날짜 : 2023.07.03
     '''
     def get(self, request, pk):
         iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
