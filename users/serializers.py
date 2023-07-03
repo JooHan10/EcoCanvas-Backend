@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, UserProfile, password_validator, password_pattern, Notification
+from .models import User, UserProfile, password_validator, password_pattern
 from django.contrib.auth.hashers import check_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -220,7 +220,7 @@ class UserWithdrawalSerializer(serializers.ModelSerializer):
     최초 작성일 : 2023.06.23
     업데이트 일자 :
     '''
-    
+
     confirm_password = serializers.CharField(
         error_messages={
             "required": "비밀번호를 입력해주세요.",
@@ -499,14 +499,4 @@ class UserProfileSerializer(serializers.ModelSerializer):
         }
 
 
-class UserNotificationSerializer(serializers.ModelSerializer):
-    '''
-    작성자 : 장소은
-    내용 : 유저의 알림 내역 조회를 위한 시리얼라이저
-    작성일 : 2023.06.22
-    '''
 
-    class Meta:
-        model = Notification
-        fields = ['id', 'participant', 'message',
-                  'created_at']

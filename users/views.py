@@ -1,4 +1,4 @@
-from users.models import User, UserProfile, Notification
+from users.models import User, UserProfile
 import requests
 import os
 from django.utils.translation import gettext_lazy as _
@@ -20,7 +20,6 @@ from users.serializers import (
     ResetPasswordSerializer,
     ResetPasswordEmailSerializer,
     UserProfileSerializer,
-    UserNotificationSerializer,
     UserWithdrawalSerializer,
     VerificationCodeGenerator
 )
@@ -34,7 +33,6 @@ from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Q
 from json import JSONDecodeError
 
 
@@ -74,7 +72,8 @@ class SignUpView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        verification_code = VerificationCodeGenerator.verification_code(request.data['email'], request.data['time_check'])
+        verification_code = VerificationCodeGenerator.verification_code(
+            request.data['email'], request.data['time_check'])
         print(verification_code)
         check_code = request.data.get('check_code')
         if verification_code == check_code:
@@ -245,11 +244,10 @@ class KakaoCallbackView(APIView):
     내용 :  Kakao 로그인 콜백을 처리하는 APIView GET. Kakao 토큰 API에 POST 요청을 보냄.
             응답을 받아와서 JSON 형식으로 파싱하여 access_token추출
             응답 데이터에 'error' 키가 포함되어 있다면 에러처리.
-            그렇지 않은 경우는 access_token을 사용하여 Kakao API를 호출하여 사용자 정보를 가져옴 이메일(kakao_email), 연령대(age_range), 성별(gender) 추출
+            그렇지 않은 경우는 access_token을 사용하여 Kakao API를 호출하여 사용자 정보를 가져옴 
             try-except - 기존에 가입된 유저인지 체크
-            만약 가입된 유저라면, 해당 유저정보를 사용하여 JWT 토큰을 생성하고, 리다이렉트 응답&JWT 토큰은 쿠키에 저장해 전달
-            User.DoesNotExist - 새로운 가입자 처리, 가입 처리 결과에 따라 리다이렉트 응답을 생성
-            +) RedirectURL과 쿠키 반환 로직 변경
+            User.DoesNotExist - 새로운 가입자 처리, 가입 처리 결과에 따라 응답을 생성
+            +) 사용자 예외처리 및 token 반환 로직 변경 
     최초 작성일 : 2023.06.08
     업데이트 일자 : 2023.06.11
     '''
@@ -301,7 +299,7 @@ class KakaoCallbackView(APIView):
             response_data = {
                 'jwt_token': jwt_token
             }
-            return JsonResponse(response_data)
+            return JsonResponse(response_data, status=status.HTTP_200_OK)
 
         except ObjectDoesNotExist:
             # 기존에 가입된 유저가 없으면 새로 가입
@@ -491,47 +489,3 @@ class UserProfileAPIView(APIView):
         return Response(
             serializer.errors, status=status.HTTP_400_BAD_REQUEST
         )
-
-
-class NotificationListAPIView(APIView):
-    '''
-    작성자 : 장소은
-    내용 : 유저 캠페인 알림/재입고 알림 조회 기능, 개별 삭제/일괄 삭제 기능 
-    작성일 : 2023.06.22
-    '''
-    permission_classes = [IsAuthenticated]
-    pagination_class = CustomPagination
-
-    def get(self, request):
-        notifications = Notification.objects.all().order_by('-created_at')
-        paginator = self.pagination_class()
-        result_page = paginator.paginate_queryset(notifications, request)
-        serializer = UserNotificationSerializer(
-            result_page,
-            many=True
-        )
-        return paginator.get_paginated_response(serializer.data)
-
-    def delete(self, request):
-        user = request.user.id
-        notification_id = request.data.get('notification_id')
-        if notification_id:
-            try:
-                notification = Notification.objects.get(
-                    Q(participant__user__id=user) |
-                    Q(restock__user__id=user),
-                    id=notification_id
-                )
-                notification.delete()
-                return Response(status=204)
-
-            except Notification.DoesNotExist:
-                return Response({'error': '알림내역을 찾을 수 없습니다.'}, status=404)
-
-        else:
-            notifications = Notification.objects.filter(
-                Q(participant__user__id=user) |
-                Q(restock__user__id=user)
-            )
-            notifications.delete()
-            return Response(status=204)

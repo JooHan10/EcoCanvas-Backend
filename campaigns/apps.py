@@ -6,9 +6,7 @@ class CampaignsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "campaigns"
 
-    def ready(self):
-        import shop.signals
-        # if settings.SCHEDULER_DEFAULT:
-        #     from . import operator
+    # if settings.SCHEDULER_DEFAULT:
+    #     from . import operator
 
-        #     operator.start()
+    #     operator.start()

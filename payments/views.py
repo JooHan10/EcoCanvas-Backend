@@ -29,27 +29,12 @@ class RegisterCustomerView(APIView):
         작성자 : 송지명
         작성일 : 2023.06.08
         작성내용 : 유저의 카드 정보 등록.
-        업데이트날짜 : 2023.06.13
+        업데이트날짜 : 2023.06.30
         ''' 
         serializer = RegisterSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
-            response = iamport.customer_create(serializer.data)
-            get_card_number = response.get('card_number')
-            get_customer_uid = response.get('customer_uid')
-            get_user = self.context['request'].user
-            exist_card_number = RegisterPayment.objects.filter(card_number=get_card_number, user=get_user)
-        
-            if exist_card_number:
-                raise serializer.ValidationError("이미 등록된 카드 번호입니다.")
-            else:
-                RegisterPayment.objects.create(
-                    user=get_user,
-                    card_number=get_card_number,
-                    customer_uid=get_customer_uid            
-                )               
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request):
@@ -255,7 +240,7 @@ class RefundpaymentsAPIView(APIView):
         '''
         iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
         token = iamport.get_headers()
-        receipt = Payment.objects.get(pk=pk)
+        receipt = Payment.objects.get(order=pk)
         imp_uid = receipt.imp_uid
         merchant_uid = receipt.merchant_uid
         

@@ -157,7 +157,7 @@ class Participant(models.Model):
     '''
 
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="campaign_participant")
+        User, on_delete=models.CASCADE, related_name="campaign_participant_user")
     campaign = models.ForeignKey(
         Campaign, on_delete=models.CASCADE, related_name="campaign_key")
     is_participated = models.BooleanField(default=False)

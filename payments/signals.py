@@ -15,8 +15,7 @@ def send_payments(sender, instance, created, **kwargs):
     최초 작성일 : 2023.06.23
     '''
     if created:
-       payment = Payment.objects.filter(user=instance.user).latest('created_at')
-       payment.order = instance
-       payment.save()
-        
-
+        payment = Payment.objects.filter(
+            user=instance.user).latest('created_at')
+        payment.order = instance
+        payment.save()

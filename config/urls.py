@@ -12,8 +12,11 @@ urlpatterns = [
     path('users/', include("dj_rest_auth.urls")),
     path('payments/', include("payments.urls")),
     path('shop/', include("shop.urls")),
+    path('alarms/', include("alarms.urls")),
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL,
+                          document_root=settings.STATIC_ROOT)
