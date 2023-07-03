@@ -249,7 +249,6 @@ class OrderProductViewAPI(APIView):
                 if serializer.is_valid():
                     valid_orders.append((serializer, product))
                 else:
-                    print(serializer.errors)
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             order_list = []
@@ -356,7 +355,6 @@ class AdminCategoryUpdateViewAPI(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
         else:
-            print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, category_id):

@@ -351,7 +351,6 @@ def check_campaign_status():
     """
     now = timezone.now()  # UTC로 찍힘
     # now = timezone.localtime() # 한국 로컬타임 찍힘
-    print(now)
     campaigns = Campaign.objects.filter(status=1)
 
     for campaign in campaigns:

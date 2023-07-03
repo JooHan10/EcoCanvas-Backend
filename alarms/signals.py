@@ -47,7 +47,6 @@ def send_daily_notifications():
         campaign__activity_start_date__range=(
             current_datetime, campaign_start_date)
     )
-    print(current_datetime, campaign_start_date)
     for participant in participants:
         days_remain = (
             participant.campaign.activity_start_date - current_datetime).days
