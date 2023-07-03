@@ -35,7 +35,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         is_active = not self.user.is_staff
         await self.room_set_activate(room_contact, is_active)
 
-        if not self.user.is_staff and self.is_alarm:
+        if is_active and self.is_alarm:
             await send_admin_notifications(room_id)
             self.is_alarm = False
 
