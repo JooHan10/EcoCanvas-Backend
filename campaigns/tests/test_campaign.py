@@ -41,7 +41,7 @@ class CampaignCreateTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 생성 테스트 클래스입니다.
     최초 작성일 : 2023.06.08
-    업데이트 일자 : 2023.06.30
+    업데이트 일자 : 2023.07.04
     """
 
     @classmethod
@@ -56,6 +56,7 @@ class CampaignCreateTest(APITestCase):
             "username": "John",
             "password": "Qwerasdf1234!",
         }
+        cls.campaign_data["is_funding"] = "true"
         cls.campaign_data["goal"] = "10000"
         cls.campaign_data["amount"] = "0"
         cls.user = User.objects.create_user(**cls.user_data)
@@ -90,6 +91,69 @@ class CampaignCreateTest(APITestCase):
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
         self.assertEqual(response.status_code, 201)
+        response_data = response.json()
+        self.assertEqual(response_data["data"][0]["title"], self.campaign_data["title"])
+        self.assertEqual(response_data["data"][1]["amount"], int(self.campaign_data["amount"]))
+        self.assertEqual(len(response_data["data"][0]) + len(response_data["data"][1]), len(self.campaign_data))
+
+
+    def test_create_campaign_without_login(self):
+        """
+        로그인하지 않은 사용자가 캠페인 작성 시도 시 실패하는 테스트 함수입니다.
+        """
+        temp_img = tempfile.NamedTemporaryFile()
+        temp_img.name = "image.png"
+        image_file = arbitrary_image(temp_img)
+        image_file.seek(0)
+        self.campaign_data["image"] = image_file
+
+        temp_text = tempfile.NamedTemporaryFile(mode="w+", delete=False)
+        temp_text.write("some text")
+        temp_text.seek(0)
+        self.campaign_data["approve_file"] = temp_text
+
+        url = reverse("campaign_view")
+        response = self.client.post(
+            path=url,
+            data=encode_multipart(data=self.campaign_data, boundary=BOUNDARY),
+            content_type=MULTIPART_CONTENT,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_create_campaign_with_invalid_data(self):
+        """
+        잘못된 데이터로 캠페인을 생성하는 경우 실패하는 테스트 함수입니다.
+        """
+        self.campaign_data["goal"] = "I'm not integer"
+        
+        url = reverse("campaign_view")
+        response = self.client.post(
+            path=url,
+            data=encode_multipart(data=self.campaign_data, boundary=BOUNDARY),
+            content_type=MULTIPART_CONTENT,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response.status_code, 400)
+        response_data = response.json()
+        self.assertEqual(response_data["goal"], ['유효한 정수(integer)를 넣어주세요.'])
+
+    def test_create_campaign_with_invalid_date_range(self):
+        """
+        캠페인 마감일이 시작일보다 과거인 경우 실패하는 테스트 함수입니다.
+        """
+        self.campaign_data["campaign_start_date"] = "2023-06-23 15:30:00+09:00"
+        self.campaign_data["campaign_end_date"] = "2023-06-09 15:30:00+09:00"
+        
+        url = reverse("campaign_view")
+        response = self.client.post(
+            path=url,
+            data=encode_multipart(data=self.campaign_data, boundary=BOUNDARY),
+            content_type=MULTIPART_CONTENT,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response.status_code, 400)
+        response_data = response.json()
+        self.assertEqual(response_data["campaign_start_date"], ['캠페인 시작일은 마감일보다 이전일 수 없습니다.'])
 
 
 class CampaignReadTest(APITestCase):
@@ -162,7 +226,7 @@ class CampaignDetailTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 특정캠페인 GET, UPDATE, DELETE 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.09
-    업데이트 일자 : 2023.07.02
+    업데이트 일자 : 2023.07.04
     """
 
     @classmethod
@@ -225,10 +289,14 @@ class CampaignDetailTest(APITestCase):
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
         self.assertEqual(response.status_code, 200)
-
+        response_data = response.json()
+        self.assertIsInstance(response_data, dict)
+        self.assertEqual(response_data["user"], self.campaign_data["user"].username)
+        self.assertEqual(response_data["members"], int(self.campaign_data["members"]))
+        self.assertEqual(response_data["title"], self.campaign_data["title"])
+        
     def test_update_campaign(self):
         """
-        캠페인 수정 테스트 함수입니다.
         임시 이미지파일과 펀딩 승인파일을 생성한 후
         수정한 뒤 PUT 요청이 잘 이루어지는지 검증하는 테스트함수입니다.
         """
@@ -243,7 +311,6 @@ class CampaignDetailTest(APITestCase):
 
     def test_delete_campaign(self):
         """
-        캠페인 삭제 테스트 함수입니다.
         임시 이미지파일과 펀딩 승인파일을 생성한 후
         DELETE 요청이 잘 이루어지는지 검증하는 테스트함수입니다.
         """
@@ -261,7 +328,7 @@ class CampaignLikeTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 좋아요 POST 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.09
-    업데이트 일자 :
+    업데이트 일자 : 2023.07.03
     """
 
     @classmethod
@@ -305,6 +372,17 @@ class CampaignLikeTest(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["message"], "좋아요 성공!")
 
+    def test_like_campaign_without_login(self):
+        """
+        로그인하지 않은 사용자가 캠페인 좋아요 시도 시 실패하는 테스트 함수입니다.
+        """
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
+        url = reverse("campaign_like_view", kwargs={"campaign_id": campaign.id})
+        response = self.client.post(
+            path=url,
+        )
+        self.assertEqual(response.status_code, 403)
+
     def test_dislike_campaign(self):
         """
         캠페인 좋아요 취소 POST요청 테스트 함수입니다.
@@ -331,7 +409,7 @@ class CampaignParticipationTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 참가 POST 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.11
-    업데이트 일자 : 2023.07.02
+    업데이트 일자 : 2023.07.03
     """
 
     @classmethod
@@ -375,6 +453,17 @@ class CampaignParticipationTest(APITestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["message"], "캠페인 참가 성공!")
+
+    def test_participate_campaign_without_login(self):
+        """
+        로그인하지 않은 사용자가 캠페인 참가신청 시도 시 실패하는 테스트 함수입니다.
+        """
+        campaign = Campaign.objects.get(title=self.campaign_data["title"])
+        url = reverse("campaign_participation_view", kwargs={"campaign_id": campaign.id})
+        response = self.client.post(
+            path=url,
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_cancel_participate_campaign(self):
         """
