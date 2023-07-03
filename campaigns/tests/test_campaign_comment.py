@@ -82,6 +82,21 @@ class CampaignCommentCreateReadTest(APITestCase):
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
         self.assertEqual(response.status_code, 201)
+        response_data = response.json()
+        self.assertIsInstance(response_data["data"], dict)
+        self.assertEqual(len(response_data["data"]), 1)
+        self.assertEqual(response_data["data"]["content"], self.comment_data["content"])
+
+    def test_create_campaign_comment_without_login(self):
+        """
+        로그인하지 않은 사용자가 캠페인 댓글 작성 시도 시 실패하는 테스트 함수입니다.
+        """
+        url = reverse("campaign_comment_view", kwargs={"campaign_id": self.campaign.id})
+        response = self.client.post(
+            path=url,
+            data=self.comment_data,
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_read_campaign_comment(self):
         """

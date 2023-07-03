@@ -164,7 +164,7 @@ class CampaignDetailView(APIView):
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def get(self, request, campaign_id):
+    def get(self, request, campaign_id: int):
         """
         campaing_id를 Parameter로 받아 해당하는 캠페인에 GET 요청을 보내는 함수입니다.
         """
@@ -173,7 +173,7 @@ class CampaignDetailView(APIView):
         serializer = CampaignSerializer(queryset)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def put(self, request, campaign_id):
+    def put(self, request, campaign_id: int):
         """
         캠페인 PUT 요청 함수입니다.
         is_funding이 True라면 펀딩정보를 같이 PUT하는 방식으로 모듈화 했습니다.
@@ -183,7 +183,7 @@ class CampaignDetailView(APIView):
         else:
             return self.update_campaign(request, campaign_id)
 
-    def update_campaign(self, request, campaign_id):
+    def update_campaign(self, request, campaign_id: int):
         """
         is_funding이 false라면 캠페인만 request로 받아
         시리얼라이저를 검증한 후, 저장합니다.
@@ -208,7 +208,7 @@ class CampaignDetailView(APIView):
                 {"message": "해당 캠페인을 수정할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN
             )
 
-    def update_campaign_with_funding(self, request, campaign_id):
+    def update_campaign_with_funding(self, request, campaign_id: int):
         """
         is_funding이 True라면 캠페인과 펀딩 모두 request로 받아
         시리얼라이저로 동시에 검증한 후, 저장합니다.
@@ -234,7 +234,7 @@ class CampaignDetailView(APIView):
                 {"message": "해당 캠페인을 수정할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN
             )
 
-    def delete(self, request, campaign_id):
+    def delete(self, request, campaign_id: int):
         """
         campaing_id를 Parameter로 받아 해당하는 캠페인을 삭제할 수 있는
         DELETE 요청 함수입니다.
@@ -262,12 +262,12 @@ class CampaignLikeView(APIView):
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def get(self, request, campaign_id):
+    def get(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         is_liked = queryset.like.filter(id=request.user.id).exists()
         return Response({"is_liked": is_liked}, status=status.HTTP_200_OK)
 
-    def post(self, request, campaign_id):
+    def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if queryset.like.filter(id=request.user.id).exists():
             queryset.like.remove(request.user)
@@ -292,13 +292,13 @@ class CampaignParticipationView(APIView):
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def get(self, request, campaign_id):
+    def get(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         is_participated = queryset.participant.filter(
             id=request.user.id).exists()
         return Response({"is_participated": is_participated}, status=status.HTTP_200_OK)
 
-    def post(self, request, campaign_id):
+    def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
 
         participant_count = queryset.participant.count()
@@ -391,7 +391,7 @@ class CampaignReviewView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     pagination_class = ReviewCommentPagination
 
-    def get(self, request, campaign_id):
+    def get(self, request, campaign_id: int):
         """
         캠페인 리뷰를 볼 수 있는 GET 요청 함수입니다.
         """
@@ -405,7 +405,7 @@ class CampaignReviewView(APIView):
 
         return pagination_instance.get_paginated_response(paginated_data)
 
-    def post(self, request, campaign_id):
+    def post(self, request, campaign_id: int):
         """
         캠페인 리뷰를 작성하는 Post 요청 함수입니다.
         """
@@ -417,7 +417,7 @@ class CampaignReviewView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
-    def put(self, request, review_id):
+    def put(self, request, review_id: int):
         """
         리뷰를 수정할 수 있는 PUT 요청 함수입니다.
         """
@@ -441,7 +441,7 @@ class CampaignReviewView(APIView):
                 {"message": "해당 리뷰를 수정할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN
             )
 
-    def delete(self, request, review_id):
+    def delete(self, request, review_id: int):
         """
         리뷰를 삭제할 수 있는 DELETE 요청 함수입니다.
         """
@@ -469,7 +469,7 @@ class CampaignCommentView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     pagination_class = ReviewCommentPagination
 
-    def get(self, request, campaign_id):
+    def get(self, request, campaign_id: int):
         """
         캠페인 댓글을 볼 수 있는 GET 요청 함수입니다.
         """
@@ -483,7 +483,7 @@ class CampaignCommentView(APIView):
 
         return pagination_instance.get_paginated_response(paginated_data)
 
-    def post(self, request, campaign_id):
+    def post(self, request, campaign_id: int):
         """
         캠페인 댓글을 작성하는 Post 요청 함수입니다.
         """
@@ -495,7 +495,7 @@ class CampaignCommentView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
-    def put(self, request, comment_id):
+    def put(self, request, comment_id: int):
         """
         댓글을 수정할 수 있는 PUT 요청 함수입니다.
         """
@@ -519,7 +519,7 @@ class CampaignCommentView(APIView):
                 {"message": "해당 댓글을 수정할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN
             )
 
-    def delete(self, request, comment_id):
+    def delete(self, request, comment_id: int):
         """
         댓글을 삭제할 수 있는 DELETE 요청 함수입니다.
         """
