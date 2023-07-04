@@ -51,16 +51,25 @@ class SendSignupEmailView(APIView):
     작성자 : 이주한
     내용 : 회원가입시 이메일 인증에 필요한 메일을 보내는 view 클래스입니다.
     최초 작성일 : 2023.06.15
-    업데이트 일자 : 2023.06.25
+    업데이트 일자 : 2023.07.05
     '''
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = SendSignupEmailSerializer(
-            data=request.data, context={"request": request})
-        if serializer.is_valid():
-            return Response({"message": "이메일 인증코드를 회원님의 이메일 계정으로 발송했습니다. 확인 부탁드립니다!"}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        user = User.objects.get(email=request.data['email'])
+        is_withdrawal=user.withdrawal
+        
+        if is_withdrawal == True:
+            user.withdrawal = False
+            user.is_active = True
+            user.save()
+            return Response({"withdrawal_true": "계정이 재활성화 되었습니다. 로그인을 진행해 주세요!"}, status=status.HTTP_423_LOCKED)
+        else:
+            serializer = SendSignupEmailSerializer(
+                data=request.data, context={"request": request})
+            if serializer.is_valid():
+                return Response({"message": "이메일 인증코드를 회원님의 이메일 계정으로 발송했습니다. 확인 부탁드립니다!"}, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SignUpView(APIView):
@@ -124,10 +133,20 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     작성자 : 이주한
     내용 : 로그인에 사용되는 JWT 토큰 view 입니다.
     최초 작성일 : 2023.06.06
-    업데이트 일자 :
+    업데이트 일자 : 2023.07.05
     '''
     permission_classes = [AllowAny]
     serializer_class = CustomTokenObtainPairSerializer
+    
+    def post(self, request):
+        user = User.objects.get(email=request.data['email'])
+        is_withdrawal=user.withdrawal
+        if is_withdrawal == True:
+            user.withdrawal = False
+            user.is_active = True
+            user.save()
+            return Response({"withdrawal_true": "계정이 재활성화 되었습니다. 로그인을 진행해 주세요!"}, status=status.HTTP_423_LOCKED)
+        return super().post(request)
 
 
 class CustomTokenRefreshView(TokenRefreshView):
@@ -244,6 +263,8 @@ class GoogleCallbackView(APIView):
                 status=status.HTTP_200_OK
             )
         except ObjectDoesNotExist:
+            email_hash = hashlib.md5(email.encode()).hexdigest()
+            username = username + email_hash[:10] + "google"
             user = User.objects.create_user(email=email, username=username)
             user.set_unusable_password()
             user.save()
