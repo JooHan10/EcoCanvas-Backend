@@ -276,7 +276,7 @@ class KakaoCallbackView(APIView):
         token_req_json = token_req.json()
         error = token_req_json.get("error")
         if error is not None:
-            raise JSONDecodeError(error)
+            raise ValueError(error)
         access_token = token_req_json.get("access_token")
         profile_request = requests.post(
             "https://kapi.kakao.com/v2/user/me",
