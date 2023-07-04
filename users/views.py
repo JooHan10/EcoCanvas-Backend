@@ -36,6 +36,7 @@ from rest_framework.pagination import PageNumberPagination
 from json import JSONDecodeError
 import json
 from django.db import IntegrityError
+import hashlib
 
 state = os.environ.get('STATE')
 kakao_callback_uri = os.environ.get('KAKAO_CALLBACK_URI')
@@ -76,7 +77,7 @@ class SignUpView(APIView):
         verification_code = VerificationCodeGenerator.verification_code(
             request.data['email'], request.data['time_check'])
         check_code = request.data.get('check_code')
-        
+
         if verification_code == check_code:
             serializer = SignUpSerializer(data=request.data)
             if serializer.is_valid():
@@ -271,7 +272,7 @@ class KakaoCallbackView(APIView):
             User.DoesNotExist - 새로운 가입자 처리, 가입 처리 결과에 따라 응답을 생성
             +) 사용자 예외처리 및 token 반환 로직 변경
     최초 작성일 : 2023.06.08
-    업데이트 일자 : 2023.06.11
+    업데이트 일자 : 2023.07.04
     '''
     permission_classes = [AllowAny]
 
@@ -298,7 +299,7 @@ class KakaoCallbackView(APIView):
             raise JSONDecodeError(error)
         kakao_user_info = profile_json.get('kakao_account')
         kakao_email = kakao_user_info["email"]
-
+        kakao_username = kakao_user_info["profile"]["nickname"]
         try:
             # 기존에 가입된 유저의 Provider가 kakao가 아니면 에러 발생, 맞으면 로그인
             # 다른 SNS로 가입된 유저
@@ -331,7 +332,11 @@ class KakaoCallbackView(APIView):
             accept_status = accept.status_code
             if accept_status != 200:
                 return JsonResponse({'err_msg': 'failed to signup'}, status=accept_status)
+            user = User.objects.get(email=kakao_email)
+            email_hash = hashlib.md5(kakao_email.encode()).hexdigest()
 
+            user.username = kakao_username + email_hash[:10] + "kakao"
+            user.save()
             return JsonResponse({'message': '가입 성공!'}, status=status.HTTP_201_CREATED)
 
 
