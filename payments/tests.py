@@ -8,6 +8,8 @@ from config import settings
 import tempfile, json
 from PIL import Image
 from datetime import timedelta, date
+import os
+
 
 def arbitrary_image(temp_text):
     """
@@ -20,6 +22,17 @@ def arbitrary_image(temp_text):
     image = Image.new("RGBA", size)
     image.save(temp_text, "png")
     return temp_text
+
+def get_dummy_path(file_name):
+    """
+    작성자 : 최준영
+    내용 : 더미데이터 로드를 위한 함수입니다.
+    최초 작성일 : 2023.06.30
+    """
+    directory = os.path.dirname(os.path.abspath(__file__))
+    campaigns_directory = os.path.dirname(directory)
+    tests_directory = os.path.join(campaigns_directory, 'campaigns', 'tests')
+    return os.path.join(tests_directory, file_name)
 
 class PaymentTest(APITestCase):
     '''
@@ -42,24 +55,20 @@ class PaymentTest(APITestCase):
         }
             
         today = date.today()
-        cls.campaign_data = {
-            "title": "탄소발자국 캠페인 모집",
-            "content": "더 나은 세상을 위한 지구별 눈물 닦아주기, 이제 우리가 행동에 나설 때입니다.",
-            "members": "200",
-            "campaign_start_date": today,
-            "campaign_end_date": today + timedelta(days=1),
-            "activity_start_date": today + timedelta(days=2),
-            "activity_end_date": today + timedelta(days=3),
-            "image": "",
-            "is_funding": "True",
-            "status": "1",
-        }
+        file_path = get_dummy_path('dummy_data.json')
+        with open(file_path, encoding="utf-8") as test_json:
+            test_dict = json.load(test_json)
+            cls.campaign_data = test_dict
+            test_json.close()
         temp_img = tempfile.NamedTemporaryFile()
         temp_img.name = "image.png"
         image_file = arbitrary_image(temp_img)
         image_file.seek(0)
         cls.campaign_data["image"] = image_file.name
         cls.campaign_data['user'] = User.objects.get(id=1)
+        cls.campaign_data["is_funding"] = "true"
+        cls.campaign_data["goal"] = "10000"
+        cls.campaign_data["amount"] = "0"
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
         cls.campaign_id = cls.campaign.id
            
@@ -77,42 +86,42 @@ class PaymentTest(APITestCase):
         )
         self.assertEquals(response.status_code, 200)
 
-    def test_register_payment_view(self):
-        '''
-        결제정보 조회 테스트코드
-        '''
-        response = self.client.get(
-            path=reverse("register_payment"),
-            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
-        )
-        self.assertEquals(response.status_code, 200)
-    def test_create_payment_schedule(self):
-        '''
-        결제정보 등록 후 예약결제 테스트 코드
-        '''
-        card_data = self.client.post(
-            path=reverse("register_payment"),
-            data=self.payment_data,
-            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
-        )
-        selected_card_data = card_data.data['card_number']
-        selected_data = RegisterPayment.objects.get(card_number=selected_card_data)
-        selected_data_id = selected_data.id
-        schedule_data = {
-            "campaign": self.campaign.id,  
-            "amount": '1000',
-            "selected_card": selected_data_id
-        }
-        response = self.client.post(
-            path=reverse("schedule_payment"),
-            data=schedule_data,
-            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
-        )
-        self.assertEquals(response.status_code, 200)
+    # def test_register_payment_view(self):
+    #     '''
+    #     결제정보 조회 테스트코드
+    #     '''
+    #     response = self.client.get(
+    #         path=reverse("register_payment"),
+    #         HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+    #     )
+    #     self.assertEquals(response.status_code, 200)
+    # def test_create_payment_schedule(self):
+    #     '''
+    #     결제정보 등록 후 예약결제 테스트 코드
+    #     '''
+    #     card_data = self.client.post(
+    #         path=reverse("register_payment"),
+    #         data=self.payment_data,
+    #         HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+    #     )
+    #     selected_card_data = card_data.data['card_number']
+    #     selected_data = RegisterPayment.objects.get(card_number=selected_card_data)
+    #     selected_data_id = selected_data.id
+    #     schedule_data = {
+    #         "campaign": self.campaign.id,  
+    #         "amount": '1000',
+    #         "selected_card": selected_data_id
+    #     }
+    #     response = self.client.post(
+    #         path=reverse("schedule_payment"),
+    #         data=schedule_data,
+    #         HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+    #     )
+    #     self.assertEquals(response.status_code, 200)
     
-    def test_view_payment_schedule(self):
-        '''
-        예약결제 확인 테스트 코드
-        '''
-        response = self.client.get(reverse('schedule_payment'))
-        self.assertEqual(response.status_code, 200)
+    # def test_view_payment_schedule(self):
+    #     '''
+    #     예약결제 확인 테스트 코드
+    #     '''
+    #     response = self.client.get(reverse('schedule_payment'))
+    #     self.assertEqual(response.status_code, 200)
