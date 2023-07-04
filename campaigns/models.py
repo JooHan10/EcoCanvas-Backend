@@ -51,7 +51,7 @@ class Campaign(BaseModel):
     status = models.PositiveSmallIntegerField(
         "진행 상태", choices=STATUS_CHOICES, default=0)
     category = models.PositiveSmallIntegerField(
-        "카테고리", choices=CATEGORY_CHOICES)
+        "카테고리", choices=CATEGORY_CHOICES, default=0)
     tags = TaggableManager(blank=True)
 
     def __str__(self):
