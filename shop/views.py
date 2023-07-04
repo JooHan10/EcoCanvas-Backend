@@ -362,14 +362,15 @@ class AdminCategoryUpdateViewAPI(APIView):
         category.delete()
         return Response({"message": "삭제 완료"}, status=status.HTTP_204_NO_CONTENT)
 
+
 class SendRefundViewAPI(APIView):
     pagination_class = CustomPagination
     permission_classes = [IsAdminUser]
-    
+
     def get(self, request):
-        
-        
-        order_details = ShopOrderDetail.objects.filter(order_detail_status=6).order_by('-order__order_date')
+
+        order_details = ShopOrderDetail.objects.filter(
+            order_detail_status=6).order_by('-order__order_date')
         orders = [order_detail.order for order_detail in order_details]
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(orders, request)
