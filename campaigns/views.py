@@ -269,6 +269,9 @@ class CampaignLikeView(APIView):
 
     def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
+        if queryset.status == 0:
+            return Response({"message": "미승인 캠페인은 좋아요 할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+    
         if queryset.like.filter(id=request.user.id).exists():
             queryset.like.remove(request.user)
             is_liked = False
@@ -300,6 +303,8 @@ class CampaignParticipationView(APIView):
 
     def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
+        if queryset.status == 0:
+            return Response({"message": "미승인 캠페인은 참가할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
 
         participant_count = queryset.participant.count()
         members = queryset.members
@@ -372,7 +377,7 @@ class CampaignStatusChecker:
 class ReviewCommentPagination(PageNumberPagination):
     """
     작성자: 최준영
-    내용 : 리뷰, 댓글 페이지네이션 클래스입니다.
+    내용 : 후기, 댓글 페이지네이션 클래스입니다.
     작성일: 2023.06.25
     """
     page_size = 5
@@ -382,10 +387,10 @@ class ReviewCommentPagination(PageNumberPagination):
 class CampaignReviewView(APIView):
     """
     작성자 : 최준영
-    내용 : 캠페인 리뷰 View 입니다.
-    완료가 된 캠페인의 리뷰에 대한 GET, POST, PUT, DELETE 요청을 처리합니다.
+    내용 : 캠페인 후기 View 입니다.
+    완료가 된 캠페인의 후기에 대한 GET, POST, PUT, DELETE 요청을 처리합니다.
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.29
+    업데이트 일자 : 2023.07.04
     """
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -393,7 +398,7 @@ class CampaignReviewView(APIView):
 
     def get(self, request, campaign_id: int):
         """
-        캠페인 리뷰를 볼 수 있는 GET 요청 함수입니다.
+        캠페인 후기를 볼 수 있는 GET 요청 함수입니다.
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
         review = queryset.reviews.all()
@@ -407,19 +412,23 @@ class CampaignReviewView(APIView):
 
     def post(self, request, campaign_id: int):
         """
-        캠페인 리뷰를 작성하는 Post 요청 함수입니다.
+        캠페인 후기를 작성하는 Post 요청 함수입니다.
         """
-        serializer = CampaignReviewCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(user=request.user, campaign_id=campaign_id)
-        return Response(
-            {"message": "리뷰가 작성되었습니다.", "data": serializer.data},
-            status=status.HTTP_201_CREATED,
-        )
+        queryset = get_object_or_404(Campaign, id=campaign_id)
+        if queryset.status == 2:
+            serializer = CampaignReviewCreateSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=request.user, campaign_id=campaign_id)
+            return Response(
+                {"message": "후기가 작성되었습니다.", "data": serializer.data},
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            return Response({"message": "완료된 캠페인에만 후기를 작성할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
 
     def put(self, request, review_id: int):
         """
-        리뷰를 수정할 수 있는 PUT 요청 함수입니다.
+        후기를 수정할 수 있는 PUT 요청 함수입니다.
         """
         queryset = get_object_or_404(CampaignReview, id=review_id)
         if request.user == queryset.user:
@@ -428,32 +437,32 @@ class CampaignReviewView(APIView):
             if serializer.is_valid():
                 serializer.save()
                 return Response(
-                    {"message": "리뷰가 수정되었습니다.", "data": serializer.data},
+                    {"message": "후기가 수정되었습니다.", "data": serializer.data},
                     status=status.HTTP_200_OK,
                 )
             else:
                 return Response(
-                    {"message": "리뷰 수정에 실패했습니다.", "errors": serializer.errors},
+                    {"message": "후기 수정에 실패했습니다.", "errors": serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
             return Response(
-                {"message": "해당 리뷰를 수정할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN
+                {"message": "해당 후기를 수정할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN
             )
 
     def delete(self, request, review_id: int):
         """
-        리뷰를 삭제할 수 있는 DELETE 요청 함수입니다.
+        후기를 삭제할 수 있는 DELETE 요청 함수입니다.
         """
         queryset = get_object_or_404(CampaignReview, id=review_id)
         if request.user == queryset.user:
             queryset.delete()
             return Response(
-                {"message": "리뷰가 삭제되었습니다."}, status=status.HTTP_204_NO_CONTENT
+                {"message": "후기가 삭제되었습니다."}, status=status.HTTP_204_NO_CONTENT
             )
         else:
             return Response(
-                {"message": "해당 리뷰를 삭제할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN
+                {"message": "해당 후기를 삭제할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN
             )
 
 
@@ -463,7 +472,7 @@ class CampaignCommentView(APIView):
     내용 : 캠페인 댓글 View 입니다.
     캠페인의 댓글에 대한 GET, POST, PUT, DELETE 요청을 처리합니다.
     최초 작성일 : 2023.06.06
-    업데이트 일자 : 2023.06.29
+    업데이트 일자 : 2023.07.04
     """
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -487,6 +496,10 @@ class CampaignCommentView(APIView):
         """
         캠페인 댓글을 작성하는 Post 요청 함수입니다.
         """
+        queryset = get_object_or_404(Campaign, id=campaign_id)
+        if queryset.status == 0:
+            return Response({"message": "미승인 캠페인에는 댓글을 작성할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+        
         serializer = CampaignCommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user, campaign_id=campaign_id)
@@ -553,7 +566,7 @@ class ParticipatingCampaignView(APIView):
 class CampaignUserReviewView(APIView):
     """
     작성자 : 박지홍
-    내용 : 유저가 작성한 리뷰를 보여주는 기능
+    내용 : 유저가 작성한 후기를 보여주는 기능
     최초 작성일 : 2023.06.08
     업데이트 일자 :
     """

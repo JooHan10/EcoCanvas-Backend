@@ -49,7 +49,26 @@ class CampaignSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Campaign
-        fields = "__all__"
+        fields = (
+            "id",
+            "user",
+            "title",
+            "content",
+            "members",
+            "is_funding",
+            "image",
+            "category",
+            "tags",
+            "status",
+            "fundings",
+            "campaign_start_date",
+            "campaign_end_date",
+            "activity_start_date",
+            "activity_end_date",
+            "user_id",
+            "like_count",
+            "participant_count",
+        )
         
     tags = TagListSerializerField()
     user = serializers.SerializerMethodField()
@@ -154,7 +173,7 @@ class CampaignCreateSerializer(TaggitSerializer, serializers.ModelSerializer):
 class CampaignReviewSerializer(serializers.ModelSerializer):
     """
     작성자 : 최준영
-    내용 : 캠페인 리뷰 시리얼라이저 입니다.
+    내용 : 캠페인 후기 시리얼라이저 입니다.
           +) author필드 추가 
     최초 작성일 : 2023.06.06
     업데이트 일자 :2023.06.16
@@ -174,7 +193,7 @@ class CampaignReviewSerializer(serializers.ModelSerializer):
 class CampaignReviewCreateSerializer(serializers.ModelSerializer):
     """
     작성자 : 최준영
-    내용 : 캠페인 리뷰 생성 시리얼라이저 입니다.
+    내용 : 캠페인 후기 생성 시리얼라이저 입니다.
     최초 작성일 : 2023.06.06
     업데이트 일자 :2023.06.16
     """

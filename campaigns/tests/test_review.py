@@ -34,7 +34,7 @@ def arbitrary_image(temp_image):
 class CampaignReviewCreateReadTest(APITestCase):
     """
     작성자 : 최준영
-    내용 : 캠페인 리뷰 GET, POST 요청 테스트 클래스입니다.
+    내용 : 캠페인 후기 GET, POST 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.09
     업데이트 일자 : 2023.06.30
     """
@@ -51,6 +51,7 @@ class CampaignReviewCreateReadTest(APITestCase):
             test_dict = json.load(test_json)
             cls.campaign_data = test_dict
             test_json.close()
+        cls.campaign_data["status"] = 2
 
         temp_img = tempfile.NamedTemporaryFile()
         temp_img.name = "image.png"
@@ -75,7 +76,7 @@ class CampaignReviewCreateReadTest(APITestCase):
 
     def test_create_campaign_review(self):
         """
-        캠페인 리뷰 POST 요청 테스트함수입니다.
+        캠페인 후기 POST 요청 테스트함수입니다.
         """
         url = reverse("campaign_review_view", kwargs={"campaign_id": self.campaign.id})
         response = self.client.post(
@@ -89,10 +90,27 @@ class CampaignReviewCreateReadTest(APITestCase):
         self.assertEqual(len(response_data["data"]), 3)
         self.assertEqual(response_data["data"]["title"], self.review_data["title"])
         self.assertEqual(response_data["data"]["content"], self.review_data["content"])
+
+    def test_fail_review_when_not_complete(self):
+        """
+        미완료 캠페인에 대한 후기 작성 시 실패하는 테스트 함수입니다.
+        """
+        self.campaign_data["status"] = 1
+        not_complete = Campaign.objects.create(**self.campaign_data)
+
+        url = reverse("campaign_review_view", kwargs={"campaign_id": not_complete.id})
+        response = self.client.post(
+            path=url,
+            data=self.review_data,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response.status_code, 403)
+        response_data = response.json()
+        self.assertEqual(response_data["message"], "완료된 캠페인에만 후기를 작성할 수 있습니다.")
     
     def test_create_campaign_review_without_login(self):
         """
-        로그인하지 않은 사용자가 캠페인 리뷰 작성 시도 시 실패하는 테스트 함수입니다.
+        로그인하지 않은 사용자가 캠페인 후기 작성 시도 시 실패하는 테스트 함수입니다.
         """
         url = reverse("campaign_review_view", kwargs={"campaign_id": self.campaign.id})
         response = self.client.post(
@@ -103,7 +121,7 @@ class CampaignReviewCreateReadTest(APITestCase):
 
     def test_read_campaign_review(self):
         """
-        캠페인 리뷰 GET 요청 테스트함수입니다.
+        캠페인 후기 GET 요청 테스트함수입니다.
         """
         url = reverse("campaign_review_view", kwargs={"campaign_id": self.campaign.id})
         response = self.client.get(
@@ -116,7 +134,7 @@ class CampaignReviewCreateReadTest(APITestCase):
 class CampaignReviewUpdateDeleteTest(APITestCase):
     """
     작성자 : 최준영
-    내용 : 캠페인 리뷰 UPDATE, DELETE 요청 테스트 클래스입니다.
+    내용 : 캠페인 후기 UPDATE, DELETE 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.09
     업데이트 일자 : 2023.06.30
     """
@@ -166,7 +184,7 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
 
     def test_update_campaign_review(self):
         """
-        캠페인 리뷰 PUT 요청 테스트함수입니다.
+        캠페인 후기 PUT 요청 테스트함수입니다.
         """
         review = CampaignReview.objects.get(title=self.review_data['title'])
         url = review.get_absolute_url()
@@ -179,7 +197,7 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
 
     def test_delete_campaign_review(self):
         """
-        캠페인 리뷰 DELETE 요청 테스트함수입니다.
+        캠페인 후기 DELETE 요청 테스트함수입니다.
         """
         review = CampaignReview.objects.get(title=self.review_data['title'])
         url = review.get_absolute_url()
