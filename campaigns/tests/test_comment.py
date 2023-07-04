@@ -87,6 +87,23 @@ class CampaignCommentCreateReadTest(APITestCase):
         self.assertEqual(len(response_data["data"]), 1)
         self.assertEqual(response_data["data"]["content"], self.comment_data["content"])
 
+    def test_fail_comment_when_not_confirmed(self):
+        """
+        미승인 캠페인에 대해 댓글작성 시도 시 실패하는 테스트 함수입니다.
+        """
+        self.campaign_data["status"] = 0
+        not_confirmed = Campaign.objects.create(**self.campaign_data)
+
+        url = reverse("campaign_comment_view", kwargs={"campaign_id": not_confirmed.id})
+        response = self.client.post(
+            path=url,
+            data=self.comment_data,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response.status_code, 403)
+        response_data = response.json()
+        self.assertEqual(response_data["message"], "미승인 캠페인에는 댓글을 작성할 수 없습니다.")
+
     def test_create_campaign_comment_without_login(self):
         """
         로그인하지 않은 사용자가 캠페인 댓글 작성 시도 시 실패하는 테스트 함수입니다.

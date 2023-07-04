@@ -117,7 +117,7 @@ class FundingDisplay(admin.ModelAdmin):
 class CampaignReviewDisplay(admin.ModelAdmin):
     """
     작성자 : 최준영
-    내용 : 캠페인 리뷰 admin 페이지 등록 클래스입니다.
+    내용 : 캠페인 후기 admin 페이지 등록 클래스입니다.
     최초 작성일 : 2023.06.08
     업데이트 일자 : 2023.06.16
     """

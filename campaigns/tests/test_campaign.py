@@ -209,7 +209,7 @@ class CampaignReadTest(APITestCase):
         """
         `setUpTestData` 메소드를 사용하여 테스트 사용자와 캠페인 데이터를 설정합니다.
         1. GET 요청의 status_code가 200인지 확인합니다.
-        2. faker 패키지를 사용하여 10개의 더미 리뷰 데이터를 생성하고, 생성된 10개의 캠페인에 대해
+        2. faker 패키지를 사용하여 10개의 더미 후기 데이터를 생성하고, 생성된 10개의 캠페인에 대해
         response와 serializer가 일치하는지 테스트합니다.
         """
         for i, campaign in enumerate(self.campaigns):
@@ -328,7 +328,7 @@ class CampaignLikeTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 좋아요 POST 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.09
-    업데이트 일자 : 2023.07.03
+    업데이트 일자 : 2023.07.04
     """
 
     @classmethod
@@ -383,6 +383,21 @@ class CampaignLikeTest(APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    def test_fail_like_campaign_not_complete(self):
+        """
+        미승인 캠페인에 대해 좋아요 시도 시 실패하는 테스트 함수입니다.
+        """
+        self.campaign_data["status"] = 0
+        not_confirmed = Campaign.objects.create(**self.campaign_data)
+        url = reverse("campaign_like_view", kwargs={"campaign_id": not_confirmed.id})
+        response = self.client.post(
+            path=url,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        response_data = response.json()
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response_data["message"], "미승인 캠페인은 좋아요 할 수 없습니다.")
+
     def test_dislike_campaign(self):
         """
         캠페인 좋아요 취소 POST요청 테스트 함수입니다.
@@ -409,7 +424,7 @@ class CampaignParticipationTest(APITestCase):
     작성자 : 최준영
     내용 : 캠페인 참가 POST 요청 테스트 클래스입니다.
     최초 작성일 : 2023.06.11
-    업데이트 일자 : 2023.07.03
+    업데이트 일자 : 2023.07.04
     """
 
     @classmethod
@@ -464,6 +479,21 @@ class CampaignParticipationTest(APITestCase):
             path=url,
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_fail_participate_campaign_not_complete(self):
+        """
+        미승인 캠페인에 대해 참가신청 시도 시 실패하는 테스트 함수입니다.
+        """
+        self.campaign_data["status"] = 0
+        not_confirmed = Campaign.objects.create(**self.campaign_data)
+        url = reverse("campaign_participation_view", kwargs={"campaign_id": not_confirmed.id})
+        response = self.client.post(
+            path=url,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        response_data = response.json()
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response_data["message"], "미승인 캠페인은 참가할 수 없습니다.")
 
     def test_cancel_participate_campaign(self):
         """
