@@ -6,15 +6,12 @@ from .models import (
     ShopCategory,
     ShopImageFile,
     RestockNotification,
-    ShopOrder
 )
-from payments.models import Payment
 from datetime import timedelta
 from django.utils import timezone
 import random
 from PIL import Image
 from io import BytesIO
-# from .signals import send_notifications
 
 
 def arbitrary_image():
