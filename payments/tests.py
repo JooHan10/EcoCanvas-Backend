@@ -43,9 +43,9 @@ class PaymentTest(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.username = User.objects.create_user(email="testuser@test.com", username="test", password="test")
-        cls.user_data = {"email": "testuser@test.com", "password": "test"}
         cls.faker = Faker()
+        cls.username = User.objects.create_user(email="testuser@test.com", username="test", password="Xptmxm123@456")
+        cls.user_data = {"email": "testuser@test.com", "password": "Xptmxm123@456"}        
         cls.register_data = {
             "card_number": settings.CARD_NUMBER,
             "expiry": settings.EXPIRY_AT,
@@ -74,7 +74,7 @@ class PaymentTest(APITestCase):
         image_file = arbitrary_image(temp_img)
         image_file.seek(0)
         cls.campaign_data["image"] = image_file.name
-        cls.campaign_data['user'] = User.objects.get(id=1)
+        cls.campaign_data['user'] = User.objects.get(id=cls.username.id)
 
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
         cls.campaign_id = cls.campaign.id

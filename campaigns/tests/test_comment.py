@@ -59,7 +59,8 @@ class CampaignCommentCreateReadTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data['user'] = User.objects.get(id=1)
+        cls.campaign_data["user"] = cls.user
+        
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
         cls.comment_data = {
@@ -155,7 +156,7 @@ class CampaignCommentUpdateDeleteTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data['user'] = User.objects.get(id=1)
+        cls.campaign_data["user"] = cls.user
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
         cls.comment_data = {
@@ -164,8 +165,8 @@ class CampaignCommentUpdateDeleteTest(APITestCase):
         cls.new_comment_data = {
             "content": "좋은 캠페인이네요. 꼭 참여하고 싶습니다!"
         }
-        cls.comment_data['user'] = User.objects.get(id=1)
-        cls.comment_data['campaign'] = Campaign.objects.get(id=1)
+        cls.comment_data['user'] = cls.user
+        cls.comment_data['campaign'] = cls.campaign
         cls.comment = CampaignComment.objects.create(**cls.comment_data)
 
     def setUp(self):
