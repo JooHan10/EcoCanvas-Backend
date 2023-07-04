@@ -1,7 +1,6 @@
 from django.db import models
 from users.models import User
 from django.urls import reverse
-from django.utils import timezone
 
 
 class ShopCategory(models.Model):
