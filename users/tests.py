@@ -4,7 +4,8 @@ from rest_framework.test import APITestCase
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import smart_bytes
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from users.models import User
+from users.models import User, UserProfile
+from users.serializers import UserSerializer
 
 
 class SendEmailTest(APITestCase):
@@ -18,10 +19,11 @@ class SendEmailTest(APITestCase):
         self.url = reverse('send_email')
         
     def test_send_email(self):
-        email ={
-            'email':'test@test.com'
+        data ={
+            'email':'test@test.com',
+            'time_check': '202374'
         }
-        response = self.client.post(self.url, email, format='json')
+        response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code,200)
         
     def test_send_email_blank(self):
@@ -51,10 +53,11 @@ class SignUpTest(APITestCase):
         url = reverse("sign_up")
         user_data = {
             "email": "user1@google.com",
-            "check_code": "dXNlcjFAZ29vZ2xlLmNvbQ==",
+            "check_code": "7b489ac24a57ef6782f367e8190d839501de46e2f770e7ef74afd5dc9b09660c",
             "username": "user1",
             "password": "Test!!11",
             "re_password": "Test!!11",
+            "time_check": "202374"
         }
         response = self.client.post(url, user_data)
         self.assertEqual(response.status_code, 201)
@@ -63,10 +66,11 @@ class SignUpTest(APITestCase):
         url = reverse("sign_up")
         user_data = {
             "email": "user1@google.com",
-            "check_code": "dXNlcjFAZ29vZ2xlLmNvbQ==",
+            "check_code": "7b489ac24a57ef6782f367e8190d839501de46e2f770e7ef74afd5dc9b09660c==",
             "username": "user1",
             "password": "test11",
             "re_password": "test11",
+            "time_check": "202374"
         }
         response = self.client.post(url, user_data)
         self.assertEqual(response.status_code, 400)
@@ -75,10 +79,11 @@ class SignUpTest(APITestCase):
         url = reverse("sign_up")
         user_data = {
             "email": "user1@google.com",
-            "check_code": "dXNlcjFAZ29vZ2xlLmNvbQ==",
+            "check_code": "7b489ac24a57ef6782f367e8190d839501de46e2f770e7ef74afd5dc9b09660c==",
             "username": "user1",
             "password": "tttTTT111!!!",
             "re_password": "tttTTT111!!!",
+            "time_check": "202374"
         }
         response = self.client.post(url, user_data)
         self.assertEqual(response.status_code, 400)
@@ -87,9 +92,10 @@ class SignUpTest(APITestCase):
         url = reverse("sign_up")
         user_data = {
             "email": "user1@google.com",
-            "check_code": "dXNlcjFAZ29vZ2xlLmNvbQ==",
+            "check_code": "7b489ac24a57ef6782f367e8190d839501de46e2f770e7ef74afd5dc9b09660c==",
             "username": "user1",
             "password": "Test!!11",
+            "time_check": "202374"
         }
         response = self.client.post(url, user_data)
         self.assertEqual(response.status_code, 400)
@@ -101,7 +107,8 @@ class SignUpTest(APITestCase):
             "check_code": "",
             "username": "user1",
             "password": "Test!!11",
-            "re_password": ""
+            "re_password": "Test!!11",
+            "time_check": "202374"
         }
         response = self.client.post(url, user_data)
         self.assertEqual(response.status_code, 400)
@@ -163,7 +170,7 @@ class UserUpdateWithdrawalTest(APITestCase):
     '''
     def setUp(self):
         self.data = {'email': 'user1@google.com', "password": "Test!!11"}
-        self.user = User.objects.create_user('user1@google.com', "dXNlcjFAZ29vZ2xlLmNvbQ==", "Test!!11")
+        self.user = User.objects.create_user(email="user1@google.com", username="test", password="Test!!11")
 
     def test_update_user(self):
         access_token = self.client.post(reverse('log_in'), self.data).data["access"]
@@ -178,6 +185,7 @@ class UserUpdateWithdrawalTest(APITestCase):
         access_token = self.client.post(reverse('log_in'), self.data).data["access"]
         response = self.client.delete(
             path=reverse("update_or_withdrawal"),
+            data={'confirm_password': self.data["password"]},
             HTTP_AUTHORIZATION=f"Bearer {access_token}"
         )
         self.assertEqual(response.status_code, 200)
@@ -290,18 +298,6 @@ class PasswordResetTest(APITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    # def test_password_reset_token_fail(self):
-    #     response = self.client.put(
-    #         path=reverse("reset_password"),
-    #         data={
-    #             "password": "Test1234!!",
-    #             "re_password": "Test1234!!",
-    #             "uidb64": self.uidb64,
-    #             "token": "1234"
-    #         },
-    #     )
-    #     self.assertEqual(response.status_code, 401)
-
 
 class PasswordResetEmailTest(APITestCase):
     '''
@@ -358,3 +354,108 @@ class PasswordResetCheckToken(APITestCase):
             path=reverse("reset_password_token_check", kwargs={"uidb64": "uidb64", "token": "token"})
         )
         self.assertEqual(response.status_code, 401)
+
+
+class UserListViewTestCase(APITestCase):
+    '''
+    작성자 : 이주한
+    작성날짜 : 2023.07.04
+    작성내용 : 어드민 페이지에서 전체 사용자 리스트를 조회할 시 발생할 수 있는 경우들을 테스트합니다.
+    업데이트 날짜 : 
+    '''
+    def setUp(self):
+        User.objects.create(email='user1@google.com', username='user1', password='Test!!11')
+        User.objects.create(email='user2@google.com', username='user2', password='Test@@22')
+        User.objects.create(email='user3@google.com', username='user3', password='Test##33')
+
+    def test_user_list_view(self):
+        response = self.client.get(reverse('user_list'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue('results' in response.data)
+        self.assertTrue('count' in response.data)
+        self.assertEqual(len(response.data['results']), 3)
+
+        serializer = UserSerializer(User.objects.all(), many=True)
+        self.assertEqual(response.data['results'], serializer.data)
+
+
+class UserDetailViewTestCase(APITestCase):
+    '''
+    작성자 : 이주한
+    작성날짜 : 2023.07.04
+    작성내용 : 어드민 페이지에서 사용자의 상세 정보를 조회하거나 권한을 변경할 시 발생할 수 있는 경우들을 테스트합니다.
+    업데이트 날짜 : 
+    '''
+    def setUp(self):
+        self.user = User.objects.create(email='user1@google.com', username='user1', password='Test!!11', is_admin=False)
+
+    def test_get_user_detail(self):
+        url = f'/users/{self.user.id}/'
+        response = self.client.get(url)
+
+        # 테스트 결과 확인
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, UserSerializer(self.user).data)
+
+    def test_toggle_user_admin(self):
+        url = f'/users/{self.user.id}/'
+        response = self.client.put(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(response.data['is_admin'], self.user.is_admin)
+
+
+class UserProfileTestCase(APITestCase):
+    '''
+    작성자 : 이주한
+    작성날짜 : 2023.07.04
+    작성내용 : 사용자의 프로필을 조회하거나 수정할 시 발생할 수 있는 경우들을 테스트합니다.
+    업데이트 날짜 : 
+    '''
+    def setUp(self):
+        self.user = User.objects.create_user(email='user1@google.com', username='user1', password='Test!!11')
+        self.user_profile = UserProfile.objects.update(
+            user=self.user,
+            image='test.jpg',
+            address='Test Address',
+            zip_code='12345',
+            detail_address='Test Detail Address',
+            delivery_message='Test Delivery Message',
+            receiver_number='010-1234-5678'
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def test_get_user_profile(self):
+        response = self.client.get(reverse('user_profile'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['user']['username'], self.user.username)
+        self.assertEqual(response.data['image'], '/media/test.jpg')
+        self.assertEqual(response.data['address'], 'Test Address')
+        self.assertEqual(response.data['zip_code'], '12345')
+        self.assertEqual(response.data['detail_address'], 'Test Detail Address')
+        self.assertEqual(response.data['delivery_message'], 'Test Delivery Message')
+        self.assertEqual(response.data['receiver_number'], '010-1234-5678')
+
+    def test_update_user_profile(self):
+        response = self.client.put(
+            path=reverse('user_profile'),
+            data = {
+                'address': 'New Address',
+                'zip_code': '54321',
+                'detail_address': 'New Detail Address',
+                'delivery_message': 'New Delivery Message',
+                'receiver_number': '010-9876-5432'
+            }
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user_profile = UserProfile.objects.get(id=self.user_profile)
+        self.user_profile.refresh_from_db()
+        self.assertEqual(self.user_profile.address, 'New Address')
+        self.assertEqual(self.user_profile.zip_code, '54321')
+        self.assertEqual(self.user_profile.detail_address, 'New Detail Address')
+        self.assertEqual(self.user_profile.delivery_message, 'New Delivery Message')
+        self.assertEqual(self.user_profile.receiver_number, '010-9876-5432')
