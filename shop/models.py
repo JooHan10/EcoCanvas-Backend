@@ -11,7 +11,7 @@ class ShopCategory(models.Model):
     최초 작성일: 2023.06.06
     업데이트 일자:
     '''
-    category_name = models.CharField(max_length=30)
+    category_name = models.CharField(max_length=30, unique=True)
 
     def __str__(self):
         return str(self.category_name)
@@ -88,11 +88,12 @@ class ShopOrderDetail(models.Model):
     product_count = models.PositiveIntegerField(default=0)
     STATUS_CHOICES = (
         (0, "주문 접수 완료"),
-        (1, "결제 확인 완료"),
-        (2, "주문취소"),
+        (1, "주문취소"),
+        (2, "배송 준비 완료"),
         (3, "배송 시작"),
         (4, "배송 중"),
-        (5, "배송 완료")
+        (5, "배송 완료"),
+        (6, "주문취소 요청")
     )
     order = models.ForeignKey(
         ShopOrder, on_delete=models.CASCADE, related_name='order_info')
@@ -102,10 +103,11 @@ class ShopOrderDetail(models.Model):
         "진행 상태", choices=STATUS_CHOICES, default=0)
 
     def get_order_detail_status_display(self):
-        return dict(self.STATUS_CHOICES).get(self.order_detail_status, "")
+        status_dict = dict(self.STATUS_CHOICES)
+        return status_dict.get(self.order_detail_status, "")
 
     def __str__(self):
-        return self.get_order_detail_status_display()
+        return f"OrderDetail #{self.id} - {self.get_order_detail_status_display()}"
 
 
 class ShopImageFile(models.Model):

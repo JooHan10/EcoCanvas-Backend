@@ -5,9 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from collections import Counter
-from chat.serializers import RoomSerializer
+from chat.serializers import RoomSerializer, MessageSerializer
 from django.db.models import Q
-from alarms.signals import send_admin_notifications
 
 
 class RoomView(APIView):
@@ -22,11 +21,9 @@ class RoomView(APIView):
         업데이트 일자 : 2023.06.15
         #06.15 : 1:1 통신만 존재함으로 인해 기존의 N:N 통신 기반 함수를 덜어냄.
         """
-        # counselor = User.objects.filter(is_admin=True).first()
 
         room = Room.objects.filter(advisee=request.user).values('id').first()
         if room:
-            send_admin_notifications(room['id'])
             return Response(room, status=status.HTTP_201_CREATED)
         else:
             return Response(None, status=status.HTTP_400_BAD_REQUEST)
@@ -38,4 +35,16 @@ class ActiveRoomView(APIView):
     def get(self, request):
         room = Room.objects.filter(Q(is_active=True) & Q(counselor=None))
         serializer = RoomSerializer(room, many=True)
-        return Response(serializer.data, status=200)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class GetRoomChatView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        room_id = request.GET.get('room')
+        if room_id:
+            room = Room.objects.filter(id=room_id).first()
+            messages = Message.objects.filter(room_id=room).order_by('-created_at')[:30]
+            serializer = MessageSerializer(messages, many=True)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)

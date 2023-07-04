@@ -8,8 +8,7 @@ import tempfile
 from users.models import User
 from campaigns.models import (
     Campaign,
-    Funding,
-    FundingOrder
+    Funding
 )
 from campaigns.serializers import (
     CampaignSerializer,

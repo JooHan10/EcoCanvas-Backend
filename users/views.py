@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from users.serializers import (
     SignUpSerializer,
     SendSignupEmailSerializer,
@@ -34,7 +34,8 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.pagination import PageNumberPagination
 from json import JSONDecodeError
-
+import json
+from django.db import IntegrityError
 
 state = os.environ.get('STATE')
 kakao_callback_uri = os.environ.get('KAKAO_CALLBACK_URI')
@@ -74,8 +75,8 @@ class SignUpView(APIView):
     def post(self, request):
         verification_code = VerificationCodeGenerator.verification_code(
             request.data['email'], request.data['time_check'])
-        print(verification_code)
         check_code = request.data.get('check_code')
+        
         if verification_code == check_code:
             serializer = SignUpSerializer(data=request.data)
             if serializer.is_valid():
@@ -83,9 +84,9 @@ class SignUpView(APIView):
                 return Response({"message": "가입완료!"}, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        elif check_code == "":
+        elif check_code == False:
             return Response({"empty": "인증코드를 입력해주세요!"}, status=status.HTTP_400_BAD_REQUEST)
-        else:
+        elif verification_code != check_code:
             return Response({"not_match": "잘못된 인증코드입니다!"}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -128,6 +129,16 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+class CustomTokenRefreshView(TokenRefreshView):
+    '''
+    작성자 : 이주한
+    내용 : TokenRefreshView를 상속받아 JWT access 토큰 갱신에 사용되는 CustomTokenRefreshView 입니다.
+    최초 작성일 : 2023.07.03
+    업데이트 일자 :
+    '''
+    permission_classes = [AllowAny]
+
+
 class CustomRefreshToken(RefreshToken):
     '''
     작성자 : 장소은
@@ -141,6 +152,7 @@ class CustomRefreshToken(RefreshToken):
         token["user_id"] = user.id
         token['email'] = user.email
         token['is_admin'] = user.is_admin
+        token['login_type'] = SocialAccount.objects.get(user=user).provider
         return token
 
 
@@ -178,14 +190,14 @@ class GoogleCallbackView(APIView):
             Authorization Code를 활용하여 우리의 앱이 API에 사용자의 정보를 요청하여 받아옵니다.
             해당 정보들 중 email을 사용하여 사용자를 확인하고 JWT token을 발급받아 로그인을 진행합니다.
     최초 작성일 : 2023.06.08
-    업데이트 일자 : 2023.06.19
+    업데이트 일자 : 2023.06.30 이슈번호/Fix#231
     '''
     permission_classes = [AllowAny]
 
     def post(self, request):
         client_id = os.environ.get("SOCIAL_AUTH_GOOGLE_CLIENT_ID")
         client_secret = os.environ.get("SOCIAL_AUTH_GOOGLE_SECRET")
-        authorization_code = request.GET.get('code')
+        authorization_code = request.data['code']
 
         access_token_request = requests.post(
             "https://oauth2.googleapis.com/token",
@@ -209,26 +221,36 @@ class GoogleCallbackView(APIView):
         user_data_json = user_data_request.json()
         email = user_data_json.get("email")
         username = user_data_json.get("name")
+        social = "google"
 
         try:
             user = User.objects.get(email=email)
+            social_user = SocialAccount.objects.get(user=user)
+
+            if social_user is None:
+                return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(일반 회원가입 계정입니다.)'}, status=status.HTTP_400_BAD_REQUEST)
+            if social_user.provider != 'google':
+                return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(다른 소셜 계정으로 가입하셨습니다.)'}, status=status.HTTP_400_BAD_REQUEST)
+
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
-
+            refresh["login_type"] = social
             return Response(
                 {
                     "refresh": str(refresh),
                     "access": str(refresh.access_token),
                 },
-                status=status.HTTP_200_OK,
+                status=status.HTTP_200_OK
             )
-        except:
+        except ObjectDoesNotExist:
             user = User.objects.create_user(email=email, username=username)
             user.set_unusable_password()
             user.save()
+            SocialAccount.objects.create(
+                user=user, provider=social, uid=username+'(Google)')
             refresh = RefreshToken.for_user(user)
             refresh["email"] = user.email
-
+            refresh["login_type"] = social
             return Response(
                 {
                     "refresh": str(refresh),
@@ -244,10 +266,10 @@ class KakaoCallbackView(APIView):
     내용 :  Kakao 로그인 콜백을 처리하는 APIView GET. Kakao 토큰 API에 POST 요청을 보냄.
             응답을 받아와서 JSON 형식으로 파싱하여 access_token추출
             응답 데이터에 'error' 키가 포함되어 있다면 에러처리.
-            그렇지 않은 경우는 access_token을 사용하여 Kakao API를 호출하여 사용자 정보를 가져옴 
+            그렇지 않은 경우는 access_token을 사용하여 Kakao API를 호출하여 사용자 정보를 가져옴
             try-except - 기존에 가입된 유저인지 체크
             User.DoesNotExist - 새로운 가입자 처리, 가입 처리 결과에 따라 응답을 생성
-            +) 사용자 예외처리 및 token 반환 로직 변경 
+            +) 사용자 예외처리 및 token 반환 로직 변경
     최초 작성일 : 2023.06.08
     업데이트 일자 : 2023.06.11
     '''
@@ -464,9 +486,10 @@ class UserProfileAPIView(APIView):
     '''
     작성자 : 장소은
     내용 : (기존) 작성된 로직은 유저의 프로필이 없다면 생성하도록 만들고 그에 해당하는 예외처리
-          (수정) signals.py에서 receiver를 통해 유저 생성 시 프로필 생성되도록 변경하고 그로 인해 불필요한 코드 삭제
+          +) signals.py에서 receiver를 통해 유저 생성 시 프로필 생성되도록 변경하고 그로 인해 불필요한 코드 삭제
+          +) 배송지수정 페이지와 회원정보 수정 모달을 따로 구현하게 변경됨에 따라 로직도 변경 
     작성일 : 2023.06.15
-    업데이트일 : 2023.06.21
+    업데이트일 : 2023.07.01
     '''
 
     permission_classes = [IsAuthenticated]
@@ -479,13 +502,25 @@ class UserProfileAPIView(APIView):
     def put(self, request):
         user_profile = UserProfile.objects.get(user=request.user)
         serializer = UserProfileSerializer(
-            instance=user_profile, data=request.data
+            instance=user_profile, data=request.data, partial=True
         )
         if serializer.is_valid():
+            user_data = request.data.get('user')
+            if user_data:  # 배송지 등록과 회원정보 수정 구분
+                username = json.loads(user_data).get('username')
+                try:
+                    user_profile.user.username = username
+                    user_profile.user.save()
+                except IntegrityError:
+                    return Response(
+                        {"message": "이미 존재하는 사용자 이름입니다."}, status=status.HTTP_400_BAD_REQUEST
+                    )
+
             serializer.save()
             return Response(
                 {"message": "회원정보 수정 완료!"}, status=status.HTTP_200_OK
             )
+
         return Response(
             serializer.errors, status=status.HTTP_400_BAD_REQUEST
         )

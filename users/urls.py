@@ -10,7 +10,7 @@ urlpatterns = [
          views.KakaoCallbackView.as_view(), name='kakao_callback'),
     path('kakao/login/finish/', views.KakaoLogin.as_view(),
          name='kakao_login_todjango'),
-    path('google/login/', views.GoogleLoginFormView.as_view(), name='google_login'),
+    path('google/login/', views.GoogleLoginFormView.as_view(), name='google_login_form'),
     path('google/callback/', views.GoogleCallbackView.as_view(),
          name='google_callback'),
 
@@ -27,6 +27,8 @@ urlpatterns = [
 
     # 로그인
     path('login/', views.CustomTokenObtainPairView.as_view(), name='log_in'),
+    path('login/refresh/', views.CustomTokenRefreshView.as_view(), name='token_refresh'),
+    
     path('list/', views.UserListView().as_view(), name='user_list'),
     path('<int:user_id>/', views.UserDetailView().as_view(), name='user'),
 
