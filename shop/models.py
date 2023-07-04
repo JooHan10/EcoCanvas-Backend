@@ -92,7 +92,8 @@ class ShopOrderDetail(models.Model):
         (2, "배송 준비 완료"),
         (3, "배송 시작"),
         (4, "배송 중"),
-        (5, "배송 완료")
+        (5, "배송 완료"),
+        (6, "주문취소 요청")
     )
     order = models.ForeignKey(
         ShopOrder, on_delete=models.CASCADE, related_name='order_info')
