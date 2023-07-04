@@ -416,15 +416,7 @@ class UserProfileTestCase(APITestCase):
     '''
     def setUp(self):
         self.user = User.objects.create_user(email='user1@google.com', username='user1', password='Test!!11')
-        self.user_profile = UserProfile.objects.update(
-            user=self.user,
-            image='test.jpg',
-            address='Test Address',
-            zip_code='12345',
-            detail_address='Test Detail Address',
-            delivery_message='Test Delivery Message',
-            receiver_number='010-1234-5678'
-        )
+        self.user_profile = UserProfile.objects.get(user=self.user)
         self.client.force_authenticate(user=self.user)
 
     def test_get_user_profile(self):
@@ -432,12 +424,12 @@ class UserProfileTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['user']['username'], self.user.username)
-        self.assertEqual(response.data['image'], '/media/test.jpg')
-        self.assertEqual(response.data['address'], 'Test Address')
-        self.assertEqual(response.data['zip_code'], '12345')
-        self.assertEqual(response.data['detail_address'], 'Test Detail Address')
-        self.assertEqual(response.data['delivery_message'], 'Test Delivery Message')
-        self.assertEqual(response.data['receiver_number'], '010-1234-5678')
+        self.assertEqual(response.data['image'], None)
+        self.assertEqual(response.data['address'], None)
+        self.assertEqual(response.data['zip_code'], None)
+        self.assertEqual(response.data['detail_address'], None)
+        self.assertEqual(response.data['delivery_message'], None)
+        self.assertEqual(response.data['receiver_number'], None)
 
     def test_update_user_profile(self):
         response = self.client.put(
@@ -450,9 +442,7 @@ class UserProfileTestCase(APITestCase):
                 'receiver_number': '010-9876-5432'
             }
         )
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.user_profile = UserProfile.objects.get(id=self.user_profile)
         self.user_profile.refresh_from_db()
         self.assertEqual(self.user_profile.address, 'New Address')
         self.assertEqual(self.user_profile.zip_code, '54321')
