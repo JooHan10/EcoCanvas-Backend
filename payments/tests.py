@@ -7,7 +7,6 @@ from faker import Faker
 from config import settings
 import tempfile, json
 from PIL import Image
-from datetime import timedelta, date
 import os
 
 
@@ -47,14 +46,24 @@ class PaymentTest(APITestCase):
         cls.username = User.objects.create_user(email="testuser@test.com", username="test", password="test")
         cls.user_data = {"email": "testuser@test.com", "password": "test"}
         cls.faker = Faker()
-        cls.payment_data = {
+        cls.register_data = {
             "card_number": settings.CARD_NUMBER,
-            "expiry_at": settings.EXPIRY_AT,
+            "expiry": settings.EXPIRY_AT,
             "birth": settings.BIRTH,
             "pwd_2digit": settings.PWD_2DIGIT
         }
+        cls.fail_register_data ={
+            "card_number": settings.CARD_NUMBER[:-1],
+            "expiry": settings.EXPIRY_AT,
+            "birth": settings.BIRTH,
+            "pwd_2digit": settings.PWD_2DIGIT
+        }
+        cls.payment_data = {
+            'merchant_uid' : 'Merchant'+ cls.user_data['email'],
+            'imp_uid' : 'IMP' + cls.user_data['email'],
+            'amount': '1000'
+        }
             
-        today = date.today()
         file_path = get_dummy_path('dummy_data.json')
         with open(file_path, encoding="utf-8") as test_json:
             test_dict = json.load(test_json)
@@ -66,9 +75,7 @@ class PaymentTest(APITestCase):
         image_file.seek(0)
         cls.campaign_data["image"] = image_file.name
         cls.campaign_data['user'] = User.objects.get(id=1)
-        cls.campaign_data["is_funding"] = "true"
-        cls.campaign_data["goal"] = "10000"
-        cls.campaign_data["amount"] = "0"
+
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
         cls.campaign_id = cls.campaign.id
            
@@ -81,47 +88,110 @@ class PaymentTest(APITestCase):
         '''
         response = self.client.post(
             path=reverse("register_payment"),
-            data=self.payment_data,
+            data=self.register_data,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEquals(response.status_code, 201)
+    def test_fail_register_payment(self):
+        '''
+        결제정보 등록 실패 테스트 코드
+        '''
+        response = self.client.post(
+            path=reverse("register_payment"),
+            data=self.fail_register_data,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEquals(response.status_code, 400)    
+        
+    def test_create_payment_schedule(self):
+        '''
+        결제정보 등록 후 예약결제 테스트 코드
+        '''
+        card_data = self.client.post(
+            path=reverse("register_payment"),
+            data=self.register_data,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        selected_card_data = card_data.data['card_number']
+        selected_data = RegisterPayment.objects.get(card_number=selected_card_data)
+        selected_data_id = selected_data.id
+        schedule_data = {
+            "campaign": self.campaign.id,  
+            "amount": '1000',
+            "selected_card": selected_data_id
+        }
+        response = self.client.post(
+            path=reverse("schedule_payment", kwargs={'pk': 1}),
+            data=schedule_data,
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
         self.assertEquals(response.status_code, 200)
-
-    # def test_register_payment_view(self):
-    #     '''
-    #     결제정보 조회 테스트코드
-    #     '''
-    #     response = self.client.get(
-    #         path=reverse("register_payment"),
-    #         HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
-    #     )
-    #     self.assertEquals(response.status_code, 200)
-    # def test_create_payment_schedule(self):
-    #     '''
-    #     결제정보 등록 후 예약결제 테스트 코드
-    #     '''
-    #     card_data = self.client.post(
-    #         path=reverse("register_payment"),
-    #         data=self.payment_data,
-    #         HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
-    #     )
-    #     selected_card_data = card_data.data['card_number']
-    #     selected_data = RegisterPayment.objects.get(card_number=selected_card_data)
-    #     selected_data_id = selected_data.id
-    #     schedule_data = {
-    #         "campaign": self.campaign.id,  
-    #         "amount": '1000',
-    #         "selected_card": selected_data_id
-    #     }
-    #     response = self.client.post(
-    #         path=reverse("schedule_payment"),
-    #         data=schedule_data,
-    #         HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
-    #     )
-    #     self.assertEquals(response.status_code, 200)
+        return response
     
-    # def test_view_payment_schedule(self):
-    #     '''
-    #     예약결제 확인 테스트 코드
-    #     '''
-    #     response = self.client.get(reverse('schedule_payment'))
-    #     self.assertEqual(response.status_code, 200)
+    def test_fail_create_payment_schedule(self):
+        '''
+        결제정보 등록 후 예약결제 실패 테스트 코드
+        '''
+        card_data = self.client.post(
+            path=reverse("register_payment"),
+            data=self.register_data,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        selected_card_data = card_data.data['card_number']
+        selected_data = RegisterPayment.objects.get(card_number=selected_card_data)
+        selected_data_id = selected_data.id
+        schedule_data = {
+            "campaign": self.campaign.id,  
+            "selected_card": selected_data_id
+        }
+        response = self.client.post(
+            path=reverse("schedule_payment", kwargs={'pk': 1}),
+            data=schedule_data,
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEquals(response.status_code, 400)
+        
+    def test_register_payment_view(self):
+        '''
+        결제정보 조회 테스트코드
+        '''
+        response = self.client.get(
+            path=reverse("register_payment"),
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEquals(response.status_code, 200)
+    
+    
+    def test_view_payment_schedule(self):
+        '''
+        예약결제 확인 테스트 코드
+        '''
+        payment = self.test_create_payment_schedule()
+        payment_data = payment.data[0].get('customer_uid')
+        payment_pk = Payment.objects.get(customer_uid=payment_data).pk
+        response = self.client.get(reverse('schedule_payment', kwargs={'pk': payment_pk}),
+                                   HTTP_AUTHORIZATION=f"Bearer {self.access_token}",)
+        self.assertEqual(response.status_code, 200)
+        
+    def test_payment(self):
+        '''
+        결제모델 생성 테스트 코드
+        '''
+        response= self.client.post(reverse('receipt_payment', kwargs={'user_id': self.username.id}),
+                                   data=self.payment_data,
+                                   HTTP_AUTHORIZATION=f"Bearer {self.access_token}"
+                                   )
+        self.assertEqual(response.status_code, 201)
+        return response
+        
+    def test_refund_scheudle(self):
+        '''
+        예약결제취소 테스트 코드
+        '''
+        schedule = self.test_create_payment_schedule()
+        schedule_data = schedule.data[0].get('merchant_uid')
+        schedule_pk = Payment.objects.get(merchant_uid=schedule_data).pk
+        response = self.client.post(reverse('schedule_receipt_payment', kwargs={'pk':schedule_pk}),
+                                    HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        self.assertEqual(response.status_code, 200)
+        
