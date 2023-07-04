@@ -55,5 +55,5 @@ class RegisterPayment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     customer_uid = models.CharField(max_length=255, blank=True, null=True)
-    card_number = models.CharField(max_length=25)
+    card_number = models.CharField(max_length=100)
 
