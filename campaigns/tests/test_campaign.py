@@ -178,15 +178,15 @@ class CampaignReadTest(APITestCase):
             "gov",
         )
         cls.faker = Faker()
-        first_name = cls.faker.first_name()
-        last_name = cls.faker.last_name()
-        company = cls.faker.company().split()[0].strip(",")
-        dns_org = cls.faker.random_choices(elements=list_of_domains, length=1)[0]
-        email_faker = f"{first_name}.{last_name}@{company}.{dns_org}".lower()
         date = timezone.now() + timedelta(seconds=random.randint(0, 86400))
         for _ in range(6):
+            first_name = cls.faker.first_name()
+            last_name = cls.faker.last_name()
+            company = cls.faker.company().split()[0].strip(",")
+            dns_org = cls.faker.random_choices(elements=list_of_domains, length=1)[0]
+            email_faker = f"{first_name}.{last_name}@{company}.{dns_org}".lower()
             cls.user = User.objects.create_user(
-                cls.faker.name() + "A1!", email_faker, cls.faker.word() + "B2@"
+                email_faker, first_name, cls.faker.word() + "B2@"
             )
             cls.campaigns.append(
                 Campaign.objects.create(
