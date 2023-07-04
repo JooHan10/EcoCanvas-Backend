@@ -186,11 +186,11 @@ class CampaignReadTest(APITestCase):
             dns_org = cls.faker.random_choices(elements=list_of_domains, length=1)[0]
             email_faker = f"{first_name}.{last_name}@{company}.{dns_org}".lower()
             cls.user = User.objects.create_user(
-                email_faker, first_name, cls.faker.word() + "B2@"
+                email_faker, first_name+last_name, cls.faker.word() + "B2@"
             )
             cls.campaigns.append(
                 Campaign.objects.create(
-                    title=cls.faker.sentence(),
+                    title=cls.faker.word(),
                     content=cls.faker.text(),
                     user=cls.user,
                     members=random.randrange(100, 200),
@@ -274,7 +274,7 @@ class CampaignDetailTest(APITestCase):
         temp_text.seek(0)
         self.new_campaign_data["approve_file"] = temp_text
 
-        self.campaign_data["user"] = User.objects.get(id=1)
+        self.campaign_data["user"] = self.user
 
         self.campaign = Campaign.objects.create(**self.campaign_data)
         
@@ -351,7 +351,8 @@ class CampaignLikeTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data["user"] = User.objects.get(id=1)
+        cls.campaign_data["user"] = cls.user
+
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
     def setUp(self):
@@ -448,7 +449,8 @@ class CampaignParticipationTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data["user"] = User.objects.get(id=1)
+        cls.campaign_data["user"] = cls.user
+
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
     def setUp(self):

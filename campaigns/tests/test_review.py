@@ -61,7 +61,7 @@ class CampaignReviewCreateReadTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data['user'] = User.objects.get(id=1)
+        cls.campaign_data['user'] = cls.user
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
         cls.review_data = {
             "title": "탄소발자국 캠페인 모집 후기",
@@ -159,7 +159,7 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data['user'] = User.objects.get(id=1)
+        cls.campaign_data['user'] = cls.user
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
         cls.review_data = {
@@ -173,8 +173,8 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
                 작고 사소한 일이지만 탄소배출 감소에 이바지했다고 생각하니 뿌듯했습니다.",
             "image": "",
         }
-        cls.review_data['user'] = User.objects.get(id=1)
-        cls.review_data['campaign'] = Campaign.objects.get(id=1)
+        cls.review_data['user'] = cls.user
+        cls.review_data['campaign'] = cls.campaign
         cls.review = CampaignReview.objects.create(**cls.review_data)
 
     def setUp(self):
