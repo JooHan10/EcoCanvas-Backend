@@ -20,6 +20,7 @@ from campaigns.serializers import (
     CampaignCommentSerializer,
     CampaignCommentCreateSerializer,
     FundingCreateSerializer,
+    MyCampaingSerializer
 )
 
 
@@ -43,7 +44,7 @@ class CampaignView(APIView):
         order = self.request.query_params.get("order", None)
         keyword = self.request.query_params.get("keyword", None)
         category = self.request.query_params.get("category", None)
-        
+
         queryset = (
             Campaign.objects.select_related("user")
             .select_related("fundings")
@@ -125,7 +126,7 @@ class CampaignView(APIView):
 
         campaign_serializer.is_valid(raise_exception=True)
         funding_serializer.is_valid(raise_exception=True)
-        
+
         campaign = campaign_serializer.save(user=request.user)
         funding_serializer.validated_data["campaign"] = campaign
         funding_serializer.save()
@@ -134,7 +135,7 @@ class CampaignView(APIView):
             "data": [campaign_serializer.data, funding_serializer.data],
         }
         return Response(response_data, status=status.HTTP_201_CREATED)
-    
+
 
 class TagFilterView(ListAPIView):
     """
@@ -147,11 +148,11 @@ class TagFilterView(ListAPIView):
 
     def get_queryset(self):
         tag = self.request.query_params.get("name", None)
-        
+
         queryset = Campaign.objects.filter(tags__name__in=[tag])
-        
+
         return queryset
-    
+
 
 class CampaignDetailView(APIView):
     """
@@ -215,8 +216,10 @@ class CampaignDetailView(APIView):
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if request.user == queryset.user:
-            campaign_serializer = CampaignCreateSerializer(queryset, data=request.data, partial=True)
-            funding_serializer = FundingCreateSerializer(data=request.data, partial=True)
+            campaign_serializer = CampaignCreateSerializer(
+                queryset, data=request.data, partial=True)
+            funding_serializer = FundingCreateSerializer(
+                data=request.data, partial=True)
 
             campaign_serializer.is_valid(raise_exception=True)
             funding_serializer.is_valid(raise_exception=True)
@@ -271,7 +274,7 @@ class CampaignLikeView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if queryset.status == 0:
             return Response({"message": "미승인 캠페인은 좋아요 할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
-    
+
         if queryset.like.filter(id=request.user.id).exists():
             queryset.like.remove(request.user)
             is_liked = False
@@ -322,8 +325,8 @@ class CampaignParticipationView(APIView):
         else:
             if participant_count + 1 > members:
                 return Response(
-                {"message": "캠페인 참가 정원을 초과하여 신청할 수 없습니다."}, status=status.HTTP_400_BAD_REQUEST
-            )
+                    {"message": "캠페인 참가 정원을 초과하여 신청할 수 없습니다."}, status=status.HTTP_400_BAD_REQUEST
+                )
             else:
                 queryset.participant.add(request.user)
                 is_participated = True
@@ -365,7 +368,7 @@ class CampaignStatusChecker:
         status를 3으로 바꿉니다.
         """
         campaigns = Campaign.objects.filter(
-            Q(status=2) & 
+            Q(status=2) &
             Q(fundings__amount__lt=F("fundings__goal"))
         )
 
@@ -499,7 +502,7 @@ class CampaignCommentView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if queryset.status == 0:
             return Response({"message": "미승인 캠페인에는 댓글을 작성할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
-        
+
         serializer = CampaignCommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user, campaign_id=campaign_id)
@@ -559,7 +562,7 @@ class ParticipatingCampaignView(APIView):
 
     def get(self, request):
         campaign = Campaign.objects.filter(user=request.user)
-        serializer = CampaignSerializer(campaign, many=True)
+        serializer = MyCampaingSerializer(campaign, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -621,7 +624,7 @@ class MyAttendCampaignView(APIView):
     def get(self, request):
         mycampaigns = Campaign.objects.filter(
             participant=request.user).order_by('-activity_end_date')
-        serializer = CampaignSerializer(mycampaigns, many=True)
+        serializer = MyCampaingSerializer(mycampaigns, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 

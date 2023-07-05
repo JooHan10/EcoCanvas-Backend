@@ -13,7 +13,8 @@ from .serializers import (
     ProductListSerializer,
     CategoryListSerializer,
     OrderProductSerializer,
-    OrderListSerializer
+    OrderListSerializer,
+    OrderDetailSerializer
 )
 from config.permissions import IsAdminUserOrReadonly
 from rest_framework.pagination import PageNumberPagination
@@ -239,29 +240,33 @@ class OrderProductViewAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        order_data = request.data.get('orders', [])
-
+        order_detail_data = request.data.get('product', [])
+        order_data = request.data.get('order', [])
+        order_data['user'] = request.user.id
         valid_orders = []
-        order_key = ShopOrder.objects.create(user=request.user)
+        order_serializer = OrderProductSerializer(data=order_data)
 
-        with transaction.atomic():
-            for order in order_data:
-                order_dict = {"order": order_key.id}
-                order.update(order_dict)
-                product_id = order.get('product')
-                product = get_object_or_404(ShopProduct, id=product_id)
-                serializer = OrderProductSerializer(data=order)
-                if serializer.is_valid():
-                    valid_orders.append((serializer, product))
-                else:
-                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if order_serializer.is_valid():
+            order = order_serializer.save()
+            with transaction.atomic():
+                for _data in order_detail_data:
+                    product_id = _data.get('product')
+                    _data['order'] = order.id
+                    product = get_object_or_404(ShopProduct, id=product_id)
+                    serializer = OrderDetailSerializer(data=_data)
+                    if serializer.is_valid():
+                        valid_orders.append((serializer, product))
+                    else:
+                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            order_list = []
-            for serializer, product in valid_orders:
-                serializer.save(product=product)
-                order_list.append(serializer.data)
+                order_list = []
+                for serializer, product in valid_orders:
+                    serializer.save(product=product)
+                    order_list.append(serializer.data)
 
-            return Response(order_list, status=status.HTTP_201_CREATED)
+                return Response(order_list, status=status.HTTP_201_CREATED)
+        else:
+            return Response(order_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AdminOrderViewAPI(APIView):
@@ -297,8 +302,7 @@ class MypageOrderViewAPI(APIView):
             user=request.user.id).order_by('-order_date')
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(orders, request)
-        serializer = OrderProductSerializer(result_page, many=True)
-
+        serializer = OrderListSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
 
