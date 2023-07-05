@@ -7,7 +7,6 @@ from rest_framework import status
 from iamport import Iamport
 from config import settings
 import requests
-from django.http import JsonResponse
 from rest_framework.pagination import PageNumberPagination
 from .cryption import CipherV1
 from shop.models import ShopOrderDetail
@@ -57,6 +56,12 @@ class RegisterCustomerView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def delete(self, request):
+        '''
+        작성자 : 송지명
+        작성일 : 2023.06.13
+        작성내용 : 유저의 카드정보 삭제
+        업데이트날짜 : 
+        '''
         
         card_id = request.data.get('id')
         register_payments = RegisterPayment.objects.get(user=request.user, id = card_id)
@@ -240,6 +245,12 @@ class DetailScheduleReceiptAPIView(APIView):
             return Response({"message":"결제 취소에 실패하였습니다."},status=status.HTTP_400_BAD_REQUEST)
         
     def check_payment_status(self):
+        '''
+        작성자 : 송지명
+        작성일 : 2023.06.30
+        작성내용 : 앱스케쥴러를 이용해 캠페인 status에 따라 예약결제의 status 변경.
+        업데이트 날짜 : 
+        '''
         payments = Payment.objects.filter(campaign__isnull=False, status="0")
         for payment in payments:
             campaign = payment.campaign

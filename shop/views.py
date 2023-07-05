@@ -368,6 +368,12 @@ class AdminCategoryUpdateViewAPI(APIView):
 
 
 class SendRefundViewAPI(APIView):
+    '''
+        작성자 : 송지명
+        작성일 : 2023.07.04
+        작성내용 : 어드민 페이지에서 취소 요청 받은 데이터 필터.  
+        업데이트 날짜 : 
+        '''
     pagination_class = CustomPagination
     permission_classes = [IsAdminUser]
 
