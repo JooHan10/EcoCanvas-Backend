@@ -12,7 +12,8 @@ from .models import (
 from .serializers import (
     ProductListSerializer,
     CategoryListSerializer,
-    OrderProductSerializer
+    OrderProductSerializer,
+    OrderListSerializer
 )
 from config.permissions import IsAdminUserOrReadonly
 from rest_framework.pagination import PageNumberPagination
@@ -238,14 +239,18 @@ class OrderProductViewAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        orders = request.data.get('orders', [])
+        order_data = request.data.get('orders', [])
+
         valid_orders = []
+        order_key = ShopOrder.objects.create(user=request.user)
 
         with transaction.atomic():
-            for order_data in orders:
-                product_id = order_data.get('product')
+            for order in order_data:
+                order_dict = {"order": order_key.id}
+                order.update(order_dict)
+                product_id = order.get('product')
                 product = get_object_or_404(ShopProduct, id=product_id)
-                serializer = OrderProductSerializer(data=order_data)
+                serializer = OrderProductSerializer(data=order)
                 if serializer.is_valid():
                     valid_orders.append((serializer, product))
                 else:
@@ -270,11 +275,10 @@ class AdminOrderViewAPI(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-
         orders = ShopOrder.objects.all().order_by('-order_date')
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(orders, request)
-        serializer = OrderProductSerializer(result_page, many=True)
+        serializer = OrderListSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
 
