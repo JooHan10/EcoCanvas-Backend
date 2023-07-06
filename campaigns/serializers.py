@@ -113,6 +113,7 @@ class CampaignListSerializer(serializers.ModelSerializer):
             "title",
             "members",
             "image",
+            "status",
             "fundings",
             "campaign_start_date",
             "campaign_end_date",
