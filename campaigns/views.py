@@ -38,7 +38,7 @@ class CampaignView(APIView):
     def get(self, request):
         """
         Query parameter에 대해 페이지네이션이 적용된 캠페인 목록을 Response하는 함수입니다.
-        Parameter : end, order
+        Parameter : end, order, keyword, category
         """
         end = self.request.query_params.get("end", None)
         order = self.request.query_params.get("order", None)
@@ -272,9 +272,10 @@ class CampaignLikeView(APIView):
 
     def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        if queryset.status == 0:
-            return Response({"message": "미승인 캠페인은 좋아요 할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
 
+        if queryset.status != 1:
+            return Response({"message": "진행중인 캠페인에만 좋아요 할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
+    
         if queryset.like.filter(id=request.user.id).exists():
             queryset.like.remove(request.user)
             is_liked = False
@@ -306,8 +307,8 @@ class CampaignParticipationView(APIView):
 
     def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        if queryset.status == 0:
-            return Response({"message": "미승인 캠페인은 참가할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+        if queryset.status != 1:
+            return Response({"message": "진행중인 캠페인에만 참가할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
 
         participant_count = queryset.participant.count()
         members = queryset.members
