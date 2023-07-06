@@ -144,7 +144,6 @@ class OrderDetailSerializer(serializers.ModelSerializer):
                 f"{product}의 상품 재고가 주문 수량보다 적습니다.")
 
     def create(self, validated_data):
-        print(validated_data)
         order_quantity = validated_data.pop('order_quantity', [])
         product_key = validated_data.get('product', [])
         order_key = validated_data.get('order', [])

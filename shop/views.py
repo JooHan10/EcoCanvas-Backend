@@ -97,17 +97,13 @@ class ProductCategoryListViewAPI(APIView):
 
         # 정렬 처리
         if sort_by == 'hits':
-            products = ShopProduct.objects.filter(
-                category_id=category.id).order_by('-hits')
+            products = products.order_by('-hits')
         elif sort_by == 'high_price':
-            products = ShopProduct.objects.filter(
-                category_id=category.id).order_by('-product_price')
+            products = products.order_by('-product_price')
         elif sort_by == 'low_price':
-            products = ShopProduct.objects.filter(
-                category_id=category.id).order_by('product_price')
+            products = products.order_by('product_price')
         else:
-            products = ShopProduct.objects.filter(
-                category_id=category.id).order_by('-product_date')
+            products = products.order_by('-product_date')
 
         # 검색 처리
         if search_query:
@@ -283,6 +279,17 @@ class OrderProductViewAPI(APIView):
             return Response(order_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class CustomOrderPagination(PageNumberPagination):
+    '''
+    작성자: 장소은
+    내용 : 주문내역 페이지네이션을 위한 커스텀페이지네이션
+    작성일: 2023.06.16
+    '''
+    page_size = 3
+    page_size_query_param = 'page_size'
+    max_page_size = 30
+
+
 class AdminOrderViewAPI(APIView):
     '''
     작성자 : 장소은
@@ -290,7 +297,7 @@ class AdminOrderViewAPI(APIView):
     최초 작성일 : 2023.06.09
     업데이트 일자 :
     '''
-    pagination_class = CustomPagination
+    pagination_class = CustomOrderPagination
     permission_classes = [IsAdminUser]
 
     def get(self, request):
@@ -309,7 +316,7 @@ class MypageOrderViewAPI(APIView):
     업데이트 일자 : 2023.06.18
     '''
     permission_classes = [IsAuthenticated]
-    pagination_class = CustomPagination
+    pagination_class = CustomOrderPagination
 
     def get(self, request):
         orders = ShopOrder.objects.filter(
