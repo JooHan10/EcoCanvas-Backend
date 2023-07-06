@@ -66,14 +66,14 @@ class CampaignView(APIView):
         }
         queryset = end_dict.get(end, queryset.filter(status__gte=1))
 
-        orders_dict = {
+        order_dict = {
             "recent": queryset.order_by("-created_at"),
             "closing": queryset.order_by("campaign_end_date"),
             "popular": queryset.annotate(participant_count=Count("participant")).order_by("-participant_count"),
             "like": queryset.annotate(like_count=Count("like")).order_by("-like_count"),
             "amount": queryset.order_by("-fundings__amount"),
         }
-        queryset = orders_dict[order]
+        queryset = order_dict[order]
 
         if keyword:
             queryset = queryset.filter(
@@ -90,9 +90,7 @@ class CampaignView(APIView):
         pagination_instance = self.pagination_class()
         paginated_data = pagination_instance.paginate_queryset(
             queryset, request)
-        
         serializer = CampaignListSerializer(paginated_data, many=True)
-
         return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request):
@@ -405,14 +403,12 @@ class CampaignReviewView(APIView):
         캠페인 후기를 볼 수 있는 GET 요청 함수입니다.
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        review = queryset.reviews.select_related("user").all()
+        review = queryset.reviews.select_related("user").all().order_by("-created_at")
 
         pagination_instance = self.pagination_class()
         paginated_data = pagination_instance.paginate_queryset(
             review, request)
-        
         serializer = CampaignReviewSerializer(paginated_data, many=True)
-
         return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request, campaign_id: int):
@@ -490,12 +486,16 @@ class CampaignCommentView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         comment = queryset.comments.select_related("user").all()
 
+        order = self.request.query_params.get("order", None)
+        if order == "recent" or None:
+            comment = comment.order_by("-created_at")
+        else:
+            comment = comment.order_by("created_at")
+
         pagination_instance = self.pagination_class()
         paginated_data = pagination_instance.paginate_queryset(
             comment, request)
-        
         serializer = CampaignCommentSerializer(paginated_data, many=True)
-
         return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request, campaign_id: int):

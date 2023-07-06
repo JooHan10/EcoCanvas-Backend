@@ -123,11 +123,11 @@ class CampaignReviewDisplay(admin.ModelAdmin):
     """
 
     list_display = [
+        "title",
+        "content",
         "user",
         "campaign",
         "image_tag",
-        "title",
-        "content",
         "created_at",
         "updated_at",
     ]
@@ -167,9 +167,9 @@ class CampaignCommentDisplay(admin.ModelAdmin):
     """
 
     list_display = [
+        "content",
         "user",
         "campaign",
-        "content",
         "created_at",
         "updated_at",
     ]

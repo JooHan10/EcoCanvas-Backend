@@ -5,6 +5,8 @@ from campaigns.models import (
     CampaignComment,
     Funding,
 )
+from users.models import UserProfile
+from users.serializers import UserProfileSerializer
 from taggit.serializers import (TagListSerializerField,
                                 TaggitSerializer)
 
@@ -47,6 +49,14 @@ class CampaignSerializer(serializers.ModelSerializer):
     업데이트 일자 : 2023.06.30
     """
 
+    tags = TagListSerializerField()
+    user = serializers.SerializerMethodField()
+    fundings = FundingSerializer()
+    like_count = serializers.SerializerMethodField()
+    participant_count = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+
     class Meta:
         model = Campaign
         fields = (
@@ -69,14 +79,6 @@ class CampaignSerializer(serializers.ModelSerializer):
             "like_count",
             "participant_count",
         )
-
-    tags = TagListSerializerField()
-    user = serializers.SerializerMethodField()
-    fundings = FundingSerializer()
-    like_count = serializers.SerializerMethodField()
-    participant_count = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
-    category = serializers.SerializerMethodField()
 
     def get_user(self, obj):
         return obj.user.username
@@ -104,6 +106,9 @@ class CampaignListSerializer(serializers.ModelSerializer):
     최초 작성일 : 2023.06.06
     업데이트 일자 : 2023.06.30
     """
+    user = serializers.SerializerMethodField()
+    fundings = FundingSerializer()
+    participant_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Campaign
@@ -120,10 +125,6 @@ class CampaignListSerializer(serializers.ModelSerializer):
             "participant_count",
         )
 
-    user = serializers.SerializerMethodField()
-    fundings = FundingSerializer()
-    participant_count = serializers.SerializerMethodField()
-
     def get_user(self, obj):
         return obj.user.username
 
@@ -138,6 +139,14 @@ class CampaignCreateSerializer(TaggitSerializer, serializers.ModelSerializer):
     최초 작성일 : 2023.06.06
     업데이트 일자 : 2023.06.30
     """
+
+    campaign_start_date = serializers.DateTimeField()
+    campaign_end_date = serializers.DateTimeField()
+    activity_start_date = serializers.DateTimeField(
+        required=False, allow_null=True)
+    activity_end_date = serializers.DateTimeField(
+        required=False, allow_null=True)
+    tags = TagListSerializerField()
 
     class Meta:
         model = Campaign
@@ -155,15 +164,6 @@ class CampaignCreateSerializer(TaggitSerializer, serializers.ModelSerializer):
             "category",
             "tags",
         )
-
-    campaign_start_date = serializers.DateTimeField()
-    campaign_end_date = serializers.DateTimeField()
-    activity_start_date = serializers.DateTimeField(
-        required=False, allow_null=True)
-    activity_end_date = serializers.DateTimeField(
-        required=False, allow_null=True)
-
-    tags = TagListSerializerField()
 
     def validate(self, data):
         """
@@ -215,12 +215,12 @@ class CampaignReviewSerializer(serializers.ModelSerializer):
     업데이트 일자 :2023.06.16
     """
 
+    author = serializers.CharField(source="user.username", read_only=True)
+    user = serializers.SerializerMethodField()
+
     class Meta:
         model = CampaignReview
         fields = "__all__"
-
-    author = serializers.CharField(source="user.username", read_only=True)
-    user = serializers.SerializerMethodField()
 
     def get_user(self, obj):
         return obj.user.username
@@ -252,6 +252,12 @@ class CampaignCommentSerializer(serializers.ModelSerializer):
     업데이트 일자 :2023.06.14
     """
 
+    author = serializers.CharField(source="user.username", read_only=True)
+    campaign_title = serializers.CharField(
+        source="campaign.title", read_only=True)
+    user = serializers.SerializerMethodField()
+    user_image = serializers.SerializerMethodField()
+
     class Meta:
         model = CampaignComment
         fields = (
@@ -263,18 +269,23 @@ class CampaignCommentSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "user_id",
+            "user_image",
         )
-
-    author = serializers.CharField(source="user.username", read_only=True)
-    campaign_title = serializers.CharField(
-        source="campaign.title", read_only=True)
-    user = serializers.SerializerMethodField()
 
     def get_user(self, obj):
         return obj.user.username
 
     def get_user_id(self, obj):
         return obj.user.id
+
+    def get_user_image(self, obj):
+        user_id = obj.user.id
+        user_profile = UserProfile.objects.filter(user_id=user_id).first()
+        if user_profile and user_profile.image:
+            user_profile_serializer = UserProfileSerializer(user_profile)
+            return user_profile_serializer.data["image"]
+        else:
+            return None
 
 
 class CampaignCommentCreateSerializer(serializers.ModelSerializer):
