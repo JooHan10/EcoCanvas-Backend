@@ -2,6 +2,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework import serializers
 from .models import ShopProduct, ShopCategory, ShopImageFile, ShopOrder, ShopOrderDetail, RestockNotification
 import re
+from django.db.models import Count, Q
 
 
 class PostImageSerializer(serializers.ModelSerializer):

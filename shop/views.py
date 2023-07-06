@@ -92,7 +92,8 @@ class ProductCategoryListViewAPI(APIView):
         sort_by = request.GET.get('sort_by')
         search_query = request.GET.get('search_query')
 
-        products = ShopProduct.objects.filter(category_id=category.id)
+        products = ShopProduct.objects.filter(
+            category_id=category.id).select_related('category')
 
         # 정렬 처리
         if sort_by == 'hits':
@@ -113,7 +114,8 @@ class ProductCategoryListViewAPI(APIView):
 
         # 페이지네이션 처리
         paginator = self.pagination_class()
-        result_page = paginator.paginate_queryset(products, request)
+        result_page = paginator.paginate_queryset(
+            products.prefetch_related('images'), request)
         serializer = ProductListSerializer(result_page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
