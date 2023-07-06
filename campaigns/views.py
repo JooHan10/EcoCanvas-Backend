@@ -14,6 +14,7 @@ from campaigns.models import (
 )
 from campaigns.serializers import (
     CampaignSerializer,
+    CampaignListSerializer,
     CampaignCreateSerializer,
     CampaignReviewSerializer,
     CampaignReviewCreateSerializer,
@@ -40,29 +41,30 @@ class CampaignView(APIView):
         Query parameter에 대해 페이지네이션이 적용된 캠페인 목록을 Response하는 함수입니다.
         Parameter : end, order, keyword, category
         """
-        end = self.request.query_params.get("end", None)
-        order = self.request.query_params.get("order", None)
-        keyword = self.request.query_params.get("keyword", None)
-        category = self.request.query_params.get("category", None)
 
         queryset = (
             Campaign.objects.select_related("user")
             .select_related("fundings")
             .prefetch_related("like")
             .prefetch_related("participant")
+            .prefetch_related("tags")
             .all()
         )
 
-        if end == "N":
-            queryset = queryset.filter(
+        end = self.request.query_params.get("end", None)
+        order = self.request.query_params.get("order", None)
+        keyword = self.request.query_params.get("keyword", None)
+        category = self.request.query_params.get("category", None)
+
+        end_dict = {
+            "N": queryset.filter(
                 Q(status=1)
                 & Q(campaign_start_date__lte=timezone.now())
                 & Q(campaign_end_date__gte=timezone.now())
-            )
-        elif end == "Y":
-            queryset = queryset.filter(status__gte=2)
-        else:
-            queryset = queryset.filter(status__gte=1)
+            ),
+            "Y": queryset.filter(status__gte=2)
+        }
+        queryset = end_dict.get(end, queryset.filter(status__gte=1))
 
         orders_dict = {
             "recent": queryset.order_by("-created_at"),
@@ -71,7 +73,6 @@ class CampaignView(APIView):
             "like": queryset.annotate(like_count=Count("like")).order_by("-like_count"),
             "amount": queryset.order_by("-fundings__amount"),
         }
-
         queryset = orders_dict[order]
 
         if keyword:
@@ -85,15 +86,14 @@ class CampaignView(APIView):
         if category:
             queryset = queryset.filter(category=category)
 
-        serializer = CampaignSerializer(queryset, many=True)
 
         pagination_instance = self.pagination_class()
-        total_count = queryset.count()
-        pagination_instance.total_count = total_count
         paginated_data = pagination_instance.paginate_queryset(
-            serializer.data, request)
+            queryset, request)
+        
+        serializer = CampaignListSerializer(paginated_data, many=True)
 
-        return pagination_instance.get_paginated_response(paginated_data)
+        return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request):
         """
@@ -405,14 +405,15 @@ class CampaignReviewView(APIView):
         캠페인 후기를 볼 수 있는 GET 요청 함수입니다.
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        review = queryset.reviews.all()
-        serializer = CampaignReviewSerializer(review, many=True)
+        review = queryset.reviews.select_related("user").all()
 
         pagination_instance = self.pagination_class()
         paginated_data = pagination_instance.paginate_queryset(
-            serializer.data, request)
+            review, request)
+        
+        serializer = CampaignReviewSerializer(paginated_data, many=True)
 
-        return pagination_instance.get_paginated_response(paginated_data)
+        return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request, campaign_id: int):
         """
@@ -487,14 +488,15 @@ class CampaignCommentView(APIView):
         캠페인 댓글을 볼 수 있는 GET 요청 함수입니다.
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        comment = queryset.comments.all()
-        serializer = CampaignCommentSerializer(comment, many=True)
+        comment = queryset.comments.select_related("user").all()
 
         pagination_instance = self.pagination_class()
         paginated_data = pagination_instance.paginate_queryset(
-            serializer.data, request)
+            comment, request)
+        
+        serializer = CampaignCommentSerializer(paginated_data, many=True)
 
-        return pagination_instance.get_paginated_response(paginated_data)
+        return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request, campaign_id: int):
         """

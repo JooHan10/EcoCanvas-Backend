@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import read_dotenv
+from distutils.util import strtobool
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -11,7 +12,7 @@ read_dotenv(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 
-DEBUG = os.environ.get("DEBUG")
+DEBUG = strtobool(os.environ.get("DEBUG"))
 
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
@@ -66,6 +67,9 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     "PAGE_SIZE": 6,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ]
 }
 
 
@@ -177,7 +181,7 @@ DATABASES = {
     },
 }
 
-DATABASES['default'] = DATABASES['dev' if DEBUG == 'True' else 'production']
+DATABASES['default'] = DATABASES['dev' if DEBUG else 'production']
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -266,9 +270,9 @@ IMP_SECRET = os.environ.get('IMP_SECRET')
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"
 SCHEDULER_DEFAULT = True
 
-USE_S3 = os.environ.get('USE_S3')
+USE_S3 = strtobool(os.environ.get('USE_S3'))
 
-if USE_S3 == "True":
+if USE_S3:
     DEFAULT_FILE_STORAGE = 'config.asset_starage.MediaStorage'
 
     AWS_ACCESS_KEY_ID = os.environ.get('MY_AWS_ACCESS_KEY_ID')
@@ -299,7 +303,7 @@ else:
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_USE_TLS = True
-EMAIL_PORT = 587
+EMAIL_PORT = os.environ.get('EMAIL_PORT')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 

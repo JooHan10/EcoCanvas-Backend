@@ -42,7 +42,7 @@ class FundingCreateSerializer(serializers.ModelSerializer):
 class CampaignSerializer(serializers.ModelSerializer):
     """
     작성자 : 최준영
-    내용 : 캠페인 시리얼라이저 입니다.
+    내용 : 캠페인 디테일 시리얼라이저 입니다.
     최초 작성일 : 2023.06.06
     업데이트 일자 : 2023.06.30
     """
@@ -52,6 +52,7 @@ class CampaignSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "user",
+            "user_id",
             "title",
             "content",
             "members",
@@ -65,7 +66,6 @@ class CampaignSerializer(serializers.ModelSerializer):
             "campaign_end_date",
             "activity_start_date",
             "activity_end_date",
-            "user_id",
             "like_count",
             "participant_count",
         )
@@ -95,6 +95,40 @@ class CampaignSerializer(serializers.ModelSerializer):
 
     def get_category(self, obj):
         return obj.get_category_display()
+    
+
+class CampaignListSerializer(serializers.ModelSerializer):
+    """
+    작성자 : 최준영
+    내용 : 캠페인 리스트 시리얼라이저 입니다.
+    최초 작성일 : 2023.06.06
+    업데이트 일자 : 2023.06.30
+    """
+
+    class Meta:
+        model = Campaign
+        fields = (
+            "id",
+            "user",
+            "title",
+            "members",
+            "image",
+            "status",
+            "fundings",
+            "campaign_start_date",
+            "campaign_end_date",
+            "participant_count",
+        )
+
+    user = serializers.SerializerMethodField()
+    fundings = FundingSerializer()
+    participant_count = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return obj.user.username
+
+    def get_participant_count(self, obj):
+        return obj.participant.count()
 
 
 class CampaignCreateSerializer(TaggitSerializer, serializers.ModelSerializer):
@@ -271,4 +305,3 @@ class MyCampaingSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         return obj.get_status_display()
-
