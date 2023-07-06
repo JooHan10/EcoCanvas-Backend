@@ -11,7 +11,7 @@ from django.test.client import MULTIPART_CONTENT, encode_multipart, BOUNDARY
 from rest_framework.test import APITestCase
 from users.models import User
 from campaigns.models import Campaign
-from campaigns.serializers import CampaignSerializer
+from campaigns.serializers import CampaignListSerializer
 
 
 def get_dummy_path(file_name):
@@ -215,7 +215,7 @@ class CampaignReadTest(APITestCase):
         for i, campaign in enumerate(self.campaigns):
             url = reverse("campaign_view") + "?page=1&order=like"
             response = self.client.get(url)
-            serializer = CampaignSerializer(campaign).data
+            serializer = CampaignListSerializer(campaign).data
             self.assertEqual(response.status_code, 200)
             for key, value in serializer.items():
                 self.assertEqual(response.data["results"][i][key], value)
