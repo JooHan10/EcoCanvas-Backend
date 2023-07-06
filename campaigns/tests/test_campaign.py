@@ -11,7 +11,7 @@ from django.test.client import MULTIPART_CONTENT, encode_multipart, BOUNDARY
 from rest_framework.test import APITestCase
 from users.models import User
 from campaigns.models import Campaign
-from campaigns.serializers import CampaignSerializer
+from campaigns.serializers import CampaignListSerializer
 
 
 def get_dummy_path(file_name):
@@ -215,7 +215,7 @@ class CampaignReadTest(APITestCase):
         for i, campaign in enumerate(self.campaigns):
             url = reverse("campaign_view") + "?page=1&order=like"
             response = self.client.get(url)
-            serializer = CampaignSerializer(campaign).data
+            serializer = CampaignListSerializer(campaign).data
             self.assertEqual(response.status_code, 200)
             for key, value in serializer.items():
                 self.assertEqual(response.data["results"][i][key], value)
@@ -386,7 +386,7 @@ class CampaignLikeTest(APITestCase):
 
     def test_fail_like_campaign_not_complete(self):
         """
-        미승인 캠페인에 대해 좋아요 시도 시 실패하는 테스트 함수입니다.
+        진행중이지 않은 캠페인에 대해 좋아요 시도 시 실패하는 테스트 함수입니다.
         """
         self.campaign_data["status"] = 0
         not_confirmed = Campaign.objects.create(**self.campaign_data)
@@ -397,7 +397,7 @@ class CampaignLikeTest(APITestCase):
         )
         response_data = response.json()
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response_data["message"], "미승인 캠페인은 좋아요 할 수 없습니다.")
+        self.assertEqual(response_data["message"], "진행중인 캠페인에만 좋아요 할 수 있습니다.")
 
     def test_dislike_campaign(self):
         """
@@ -484,7 +484,7 @@ class CampaignParticipationTest(APITestCase):
 
     def test_fail_participate_campaign_not_complete(self):
         """
-        미승인 캠페인에 대해 참가신청 시도 시 실패하는 테스트 함수입니다.
+        진행중이지 않은 캠페인에 대해 참가신청 시도 시 실패하는 테스트 함수입니다.
         """
         self.campaign_data["status"] = 0
         not_confirmed = Campaign.objects.create(**self.campaign_data)
@@ -495,7 +495,7 @@ class CampaignParticipationTest(APITestCase):
         )
         response_data = response.json()
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response_data["message"], "미승인 캠페인은 참가할 수 없습니다.")
+        self.assertEqual(response_data["message"], "진행중인 캠페인에만 참가할 수 있습니다.")
 
     def test_cancel_participate_campaign(self):
         """

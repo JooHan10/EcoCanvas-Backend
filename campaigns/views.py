@@ -14,12 +14,14 @@ from campaigns.models import (
 )
 from campaigns.serializers import (
     CampaignSerializer,
+    CampaignListSerializer,
     CampaignCreateSerializer,
     CampaignReviewSerializer,
     CampaignReviewCreateSerializer,
     CampaignCommentSerializer,
     CampaignCommentCreateSerializer,
     FundingCreateSerializer,
+    MyCampaingSerializer
 )
 
 
@@ -37,31 +39,32 @@ class CampaignView(APIView):
     def get(self, request):
         """
         Query parameter에 대해 페이지네이션이 적용된 캠페인 목록을 Response하는 함수입니다.
-        Parameter : end, order
+        Parameter : end, order, keyword, category
         """
-        end = self.request.query_params.get("end", None)
-        order = self.request.query_params.get("order", None)
-        keyword = self.request.query_params.get("keyword", None)
-        category = self.request.query_params.get("category", None)
-        
+
         queryset = (
             Campaign.objects.select_related("user")
             .select_related("fundings")
             .prefetch_related("like")
             .prefetch_related("participant")
+            .prefetch_related("tags")
             .all()
         )
 
-        if end == "N":
-            queryset = queryset.filter(
+        end = self.request.query_params.get("end", None)
+        order = self.request.query_params.get("order", None)
+        keyword = self.request.query_params.get("keyword", None)
+        category = self.request.query_params.get("category", None)
+
+        end_dict = {
+            "N": queryset.filter(
                 Q(status=1)
                 & Q(campaign_start_date__lte=timezone.now())
                 & Q(campaign_end_date__gte=timezone.now())
-            )
-        elif end == "Y":
-            queryset = queryset.filter(status__gte=2)
-        else:
-            queryset = queryset.filter(status__gte=1)
+            ),
+            "Y": queryset.filter(status__gte=2)
+        }
+        queryset = end_dict.get(end, queryset.filter(status__gte=1))
 
         orders_dict = {
             "recent": queryset.order_by("-created_at"),
@@ -70,7 +73,6 @@ class CampaignView(APIView):
             "like": queryset.annotate(like_count=Count("like")).order_by("-like_count"),
             "amount": queryset.order_by("-fundings__amount"),
         }
-
         queryset = orders_dict[order]
 
         if keyword:
@@ -84,15 +86,14 @@ class CampaignView(APIView):
         if category:
             queryset = queryset.filter(category=category)
 
-        serializer = CampaignSerializer(queryset, many=True)
 
         pagination_instance = self.pagination_class()
-        total_count = queryset.count()
-        pagination_instance.total_count = total_count
         paginated_data = pagination_instance.paginate_queryset(
-            serializer.data, request)
+            queryset, request)
+        
+        serializer = CampaignListSerializer(paginated_data, many=True)
 
-        return pagination_instance.get_paginated_response(paginated_data)
+        return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request):
         """
@@ -125,7 +126,7 @@ class CampaignView(APIView):
 
         campaign_serializer.is_valid(raise_exception=True)
         funding_serializer.is_valid(raise_exception=True)
-        
+
         campaign = campaign_serializer.save(user=request.user)
         funding_serializer.validated_data["campaign"] = campaign
         funding_serializer.save()
@@ -134,7 +135,7 @@ class CampaignView(APIView):
             "data": [campaign_serializer.data, funding_serializer.data],
         }
         return Response(response_data, status=status.HTTP_201_CREATED)
-    
+
 
 class TagFilterView(ListAPIView):
     """
@@ -147,11 +148,11 @@ class TagFilterView(ListAPIView):
 
     def get_queryset(self):
         tag = self.request.query_params.get("name", None)
-        
+
         queryset = Campaign.objects.filter(tags__name__in=[tag])
-        
+
         return queryset
-    
+
 
 class CampaignDetailView(APIView):
     """
@@ -215,8 +216,10 @@ class CampaignDetailView(APIView):
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if request.user == queryset.user:
-            campaign_serializer = CampaignCreateSerializer(queryset, data=request.data, partial=True)
-            funding_serializer = FundingCreateSerializer(data=request.data, partial=True)
+            campaign_serializer = CampaignCreateSerializer(
+                queryset, data=request.data, partial=True)
+            funding_serializer = FundingCreateSerializer(
+                data=request.data, partial=True)
 
             campaign_serializer.is_valid(raise_exception=True)
             funding_serializer.is_valid(raise_exception=True)
@@ -269,8 +272,9 @@ class CampaignLikeView(APIView):
 
     def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        if queryset.status == 0:
-            return Response({"message": "미승인 캠페인은 좋아요 할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+        if queryset.status != 1:
+            return Response({"message": "진행중인 캠페인에만 좋아요 할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
     
         if queryset.like.filter(id=request.user.id).exists():
             queryset.like.remove(request.user)
@@ -303,8 +307,8 @@ class CampaignParticipationView(APIView):
 
     def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        if queryset.status == 0:
-            return Response({"message": "미승인 캠페인은 참가할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+        if queryset.status != 1:
+            return Response({"message": "진행중인 캠페인에만 참가할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
 
         participant_count = queryset.participant.count()
         members = queryset.members
@@ -322,8 +326,8 @@ class CampaignParticipationView(APIView):
         else:
             if participant_count + 1 > members:
                 return Response(
-                {"message": "캠페인 참가 정원을 초과하여 신청할 수 없습니다."}, status=status.HTTP_400_BAD_REQUEST
-            )
+                    {"message": "캠페인 참가 정원을 초과하여 신청할 수 없습니다."}, status=status.HTTP_400_BAD_REQUEST
+                )
             else:
                 queryset.participant.add(request.user)
                 is_participated = True
@@ -365,7 +369,7 @@ class CampaignStatusChecker:
         status를 3으로 바꿉니다.
         """
         campaigns = Campaign.objects.filter(
-            Q(status=2) & 
+            Q(status=2) &
             Q(fundings__amount__lt=F("fundings__goal"))
         )
 
@@ -401,14 +405,15 @@ class CampaignReviewView(APIView):
         캠페인 후기를 볼 수 있는 GET 요청 함수입니다.
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        review = queryset.reviews.all()
-        serializer = CampaignReviewSerializer(review, many=True)
+        review = queryset.reviews.select_related("user").all()
 
         pagination_instance = self.pagination_class()
         paginated_data = pagination_instance.paginate_queryset(
-            serializer.data, request)
+            review, request)
+        
+        serializer = CampaignReviewSerializer(paginated_data, many=True)
 
-        return pagination_instance.get_paginated_response(paginated_data)
+        return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request, campaign_id: int):
         """
@@ -483,14 +488,15 @@ class CampaignCommentView(APIView):
         캠페인 댓글을 볼 수 있는 GET 요청 함수입니다.
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        comment = queryset.comments.all()
-        serializer = CampaignCommentSerializer(comment, many=True)
+        comment = queryset.comments.select_related("user").all()
 
         pagination_instance = self.pagination_class()
         paginated_data = pagination_instance.paginate_queryset(
-            serializer.data, request)
+            comment, request)
+        
+        serializer = CampaignCommentSerializer(paginated_data, many=True)
 
-        return pagination_instance.get_paginated_response(paginated_data)
+        return pagination_instance.get_paginated_response(serializer.data)
 
     def post(self, request, campaign_id: int):
         """
@@ -499,7 +505,7 @@ class CampaignCommentView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if queryset.status == 0:
             return Response({"message": "미승인 캠페인에는 댓글을 작성할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
-        
+
         serializer = CampaignCommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user, campaign_id=campaign_id)
@@ -559,7 +565,7 @@ class ParticipatingCampaignView(APIView):
 
     def get(self, request):
         campaign = Campaign.objects.filter(user=request.user)
-        serializer = CampaignSerializer(campaign, many=True)
+        serializer = MyCampaingSerializer(campaign, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -621,7 +627,7 @@ class MyAttendCampaignView(APIView):
     def get(self, request):
         mycampaigns = Campaign.objects.filter(
             participant=request.user).order_by('-activity_end_date')
-        serializer = CampaignSerializer(mycampaigns, many=True)
+        serializer = MyCampaingSerializer(mycampaigns, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 

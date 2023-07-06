@@ -2,7 +2,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .serializers import RegisterSerializer, PaymentScheduleSerializer, RegisterPaymentSerializer
 from .models import RegisterPayment, Payment
-from users.models import User
 from rest_framework import status
 from iamport import Iamport
 from config import settings
@@ -110,27 +109,6 @@ class CreatePaymentScheduleView(APIView):
     
 class ReceiptAPIView(APIView):
     
-    def post(self, request, user_id):
-        '''
-        작성자 : 송지명
-        작성일 : 2023.06.14
-        작성내용: 결제 후 모델에 저장
-        업데이트 날짜 : 2023.06.23
-        '''
-        merchant_uid = request.data.get('merchant_uid')
-        imp_uid = request.data.get('imp_uid')
-        amount = request.data.get('amount')
-        user_data = User.objects.get(id=user_id)
-        response = Payment.objects.create(user=user_data, amount=amount, imp_uid=imp_uid,merchant_uid=merchant_uid,  status =None)
-        response_data = {
-            'user': user_data.username,
-            'merchant_uid': response.merchant_uid,
-            'imp_uid': response.imp_uid,
-            'amount': response.amount,
-            
-        }
-        return Response(response_data, status=status.HTTP_201_CREATED)
-    
     def get(self, request, user_id):
         '''
         작성자 : 송지명
@@ -162,7 +140,7 @@ class DetailReciptAPIView(APIView):
         업데이트 일자 : 2023.07.03
         '''
         iamport = Iamport(imp_key=settings.IMP_KEY, imp_secret=settings.IMP_SECRET)
-        detail_receipt = Payment.objects.get(pk=pk)
+        detail_receipt = Payment.objects.get(order_id=pk)
         imp_uid = detail_receipt.imp_uid
         response=iamport.find_by_imp_uid(imp_uid=imp_uid)
         response_data = response['receipt_url']
@@ -177,7 +155,7 @@ class RefundReceiptAPIView(APIView):
         작성내용: 결제 취소 요청하기
         업데이트 일자 : 2023.06.21        
         '''
-        order = ShopOrderDetail.objects.get(order=pk)
+        order = ShopOrderDetail.objects.get(pk=pk)
         if order.order_detail_status == 0:
             receipt = Payment.objects.get(order=pk)
             receipt_status = request.data.get('status')
