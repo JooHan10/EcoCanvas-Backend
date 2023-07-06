@@ -117,18 +117,24 @@ class ReceiptAPIView(APIView):
         작성내용: 결제 후 모델에 저장
         업데이트 날짜 : 2023.06.23
         '''
-        merchant_uid = request.data.get('merchant_uid')
-        imp_uid = request.data.get('imp_uid')
-        amount = request.data.get('amount')
+        print(request.data)
+        payment_data = request.data.get('payment')
+        product_data = request.data.get('product')
+        print(payment_data)
+        merchant_uid = payment_data.get('merchant_uid')
+        imp_uid = payment_data.get('imp_uid')
         user_data = User.objects.get(id=user_id)
-        response = Payment.objects.create(user=user_data, amount=amount, imp_uid=imp_uid,merchant_uid=merchant_uid,  status =None)
-        response_data = {
-            'user': user_data.username,
-            'merchant_uid': response.merchant_uid,
-            'imp_uid': response.imp_uid,
-            'amount': response.amount,
-            
-        }
+        response_data = []
+        for item in product_data:
+            order_price = item.get('order_price')
+            response = Payment.objects.create(user=user_data, amount=order_price, imp_uid=imp_uid,merchant_uid=merchant_uid,  status =None)
+            response_data.append ({
+                'user': user_data.username,
+                'merchant_uid': response.merchant_uid,
+                'imp_uid': response.imp_uid,
+                'amount': response.amount,
+                
+            })
         return Response(response_data, status=status.HTTP_201_CREATED)
     
     def get(self, request, user_id):
@@ -177,7 +183,7 @@ class RefundReceiptAPIView(APIView):
         작성내용: 결제 취소 요청하기
         업데이트 일자 : 2023.06.21        
         '''
-        order = ShopOrderDetail.objects.get(order=pk)
+        order = ShopOrderDetail.objects.get(pk=pk)
         if order.order_detail_status == 0:
             receipt = Payment.objects.get(order=pk)
             receipt_status = request.data.get('status')
