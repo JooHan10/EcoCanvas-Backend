@@ -409,5 +409,5 @@ class SendRefundViewAPI(APIView):
         orders = [order_detail.order for order_detail in order_details]
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(orders, request)
-        serializer = OrderProductSerializer(result_page, many=True)
+        serializer = OrderListSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
