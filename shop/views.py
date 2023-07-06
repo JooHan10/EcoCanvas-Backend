@@ -23,7 +23,8 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from django.core.cache import cache
 from django.db import transaction
 from django.db import IntegrityError
-
+from .models import User
+from payments.models import Payment
 
 class CustomPagination(PageNumberPagination):
     '''
@@ -228,8 +229,10 @@ class AdminCategoryViewAPI(APIView):
 
 class OrderProductViewAPI(APIView):
     '''
-    작성자 : 장소은
-    내용 : 해당 상품에 대한 주문 생성(+다중 주문), 트랜잭션을 이용하여 모든 주문이 유효성 검사를 통과해야 db저장 되도록 개선
+    작성자 : 장소은, 송지명
+    내용 : 해당 상품에 대한 주문 생성(+다중 주문), 트랜잭션을 이용하여 모든 주문이 유효성 검사를 통과해야 db저장 되도록 개선,
+           결제 후 payment모델에 order_detail별로 저장 
+
     최초 작성일 : 2023.06.13
     업데이트일 : 2023.06.30
     '''
@@ -240,7 +243,12 @@ class OrderProductViewAPI(APIView):
         order_data = request.data.get('order', [])
         order_data['user'] = request.user.id
         valid_orders = []
+        payment_response =[]
         order_serializer = OrderProductSerializer(data=order_data)
+        payment_data = request.data.get('payment')
+        merchant_uid = payment_data.get('merchant_uid')
+        imp_uid = payment_data.get('imp_uid')
+        user_data = User.objects.get(id=request.user.id)
 
         if order_serializer.is_valid():
             order = order_serializer.save()
@@ -250,17 +258,23 @@ class OrderProductViewAPI(APIView):
                     _data['order'] = order.id
                     product = get_object_or_404(ShopProduct, id=product_id)
                     serializer = OrderDetailSerializer(data=_data)
+                    order_price = _data.get('order_price')
                     if serializer.is_valid():
+                        order_detail = serializer.save(product=product)
+                        payment= Payment.objects.create(user=user_data, order_id=order_detail.id, amount=order_price, imp_uid=imp_uid,merchant_uid=merchant_uid, status=None)
+                        payment_response.append({
+                        'user':user_data.username,
+                        'amount':payment.amount
+                         })
                         valid_orders.append((serializer, product))
                     else:
                         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
                 order_list = []
                 for serializer, product in valid_orders:
-                    serializer.save(product=product)
                     order_list.append(serializer.data)
 
-                return Response(order_list, status=status.HTTP_201_CREATED)
+                return Response({'order_list':order_list, 'payment':payment_response}, status=status.HTTP_201_CREATED)
         else:
             return Response(order_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -395,5 +409,5 @@ class SendRefundViewAPI(APIView):
         orders = [order_detail.order for order_detail in order_details]
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(orders, request)
-        serializer = OrderProductSerializer(result_page, many=True)
+        serializer = OrderListSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)

@@ -1,7 +1,7 @@
 from django.db import models
 from users.models import User
 from campaigns.models import Campaign
-from shop.models import ShopOrder
+from shop.models import ShopOrderDetail
 
 
 class Payment(models.Model):
@@ -28,7 +28,7 @@ class Payment(models.Model):
     campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, null=True)
     merchant_uid = models.CharField(max_length=255)
     imp_uid = models.CharField(max_length=255, null=True)
-    order = models.OneToOneField(ShopOrder, on_delete=models.CASCADE, null=True)
+    order = models.OneToOneField(ShopOrderDetail, on_delete=models.CASCADE, null=True)
     status = models.PositiveIntegerField(choices=STATUS_CHOICES, null=True)
     customer_uid = models.CharField(max_length=255, blank=True, null=True)
     other_status = models.CharField(max_length=50, blank=True, null=True)
