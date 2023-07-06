@@ -106,7 +106,9 @@
 
 <br>
 
-## [ERD](https://www.erdcloud.com/d/rcy9tc32bPmgHN6gn)
+## ERD
+
+![model_graph](https://github.com/nueeng/EcoCanvas-Backend/assets/127704498/ddeccf92-e0a9-4fb5-a178-92304fd464bd)
 
 <br>
 
