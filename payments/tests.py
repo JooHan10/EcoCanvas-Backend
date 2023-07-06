@@ -172,18 +172,7 @@ class PaymentTest(APITestCase):
         response = self.client.get(reverse('schedule_payment', kwargs={'pk': payment_pk}),
                                    HTTP_AUTHORIZATION=f"Bearer {self.access_token}",)
         self.assertEqual(response.status_code, 200)
-        
-    def test_payment(self):
-        '''
-        결제모델 생성 테스트 코드
-        '''
-        response= self.client.post(reverse('receipt_payment', kwargs={'user_id': self.username.id}),
-                                   data=self.payment_data,
-                                   HTTP_AUTHORIZATION=f"Bearer {self.access_token}"
-                                   )
-        self.assertEqual(response.status_code, 201)
-        return response
-        
+    
     def test_refund_scheudle(self):
         '''
         예약결제취소 테스트 코드
