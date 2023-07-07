@@ -8,39 +8,53 @@ from users.models import User, UserProfile
 from users.serializers import UserSerializer
 
 
-class SendEmailTest(APITestCase):
-    '''
-    작성자 : 이주한
-    작성날짜 : 2023.06.16
-    작성내용 : 회원가입시 이메일 전송 로직에서 발생할 수 있는 경우들을 테스트합니다.
-    업데이트 날짜 : 
-    '''
+class SendSignupEmailTest(APITestCase):
     def setUp(self):
-        self.url = reverse('send_email')
-        
-    def test_send_email(self):
-        data ={
-            'email':'test@test.com',
-            'time_check': '202374'
-        }
-        response = self.client.post(self.url, data, format='json')
-        self.assertEqual(response.status_code,200)
-        
-    def test_send_email_blank(self):
-        email ={
-            'email': ""
-        }
-        response = self.client.post(self.url, email, format ='json')
-        self.assertEqual(response.status_code,400)
-    
-    def test_send_email_already_register_email(self):
-        User.objects.create(email="user1@google.com", username="test", password="Test!!11")
-        email ={
-            'email':'user1@google.com'
-        }
-        response = self.client.post(self.url, email, format='json')
-        self.assertEqual(response.status_code,400)
+        self.email = 'test@example.com'
+        self.user = User.objects.create_user(
+            username='test_user',
+            email=self.email,
+            password='test_password'
+        )
+        self.user.withdrawal = True
+        self.user.save()
 
+    def test_post_with_withdrawal_true(self):
+        url = reverse("send_email")
+        data = {
+            'email': self.email,
+            'time_check': '202377'
+        }
+
+        response = self.client.post(url, data, format ='json')
+        self.assertEqual(response.status_code, status.HTTP_423_LOCKED)
+        self.assertEqual(response.data['withdrawal_true'], '계정이 재활성화 되었습니다. 로그인을 진행해 주세요!')
+
+        user = User.objects.get(email=self.email)
+        self.assertFalse(user.withdrawal)
+        self.assertTrue(user.is_active)
+
+    def test_post_with_invalid_data(self):
+        url = reverse("send_email")
+        data = {
+            'email': '',
+            'time_check': '202377'
+        }
+
+        response = self.client.post(url, data, format ='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
+
+    def test_post_with_valid_data(self):
+        url = reverse("send_email")
+        data = {
+            'email': 'test2@example.com',
+            'time_check': '202377'
+        }
+
+        response = self.client.post(url, data, format ='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['message'], '이메일 인증코드를 회원님의 이메일 계정으로 발송했습니다. 확인 부탁드립니다!')
 
 class SignUpTest(APITestCase):
     '''

@@ -56,17 +56,20 @@ class SendSignupEmailView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        user = User.objects.get(email=request.data['email'])
-        is_withdrawal=user.withdrawal
+        try:
+            user = User.objects.get(email=request.data['email'])
         
-        if is_withdrawal == True:
-            user.withdrawal = False
-            user.is_active = True
-            user.save()
-            return Response({"withdrawal_true": "계정이 재활성화 되었습니다. 로그인을 진행해 주세요!"}, status=status.HTTP_423_LOCKED)
-        else:
+            if user.withdrawal == True:
+                user.withdrawal = False
+                user.is_active = True
+                user.save()
+                return Response({"withdrawal_true": "계정이 재활성화 되었습니다. 로그인을 진행해 주세요!"}, status=status.HTTP_423_LOCKED)
+            else:
+                raise User.DoesNotExist
+        except User.DoesNotExist:
             serializer = SendSignupEmailSerializer(
                 data=request.data, context={"request": request})
+            
             if serializer.is_valid():
                 return Response({"message": "이메일 인증코드를 회원님의 이메일 계정으로 발송했습니다. 확인 부탁드립니다!"}, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
