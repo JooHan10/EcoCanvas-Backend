@@ -18,7 +18,6 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 
 INSTALLED_APPS = [
-    'debug_toolbar',
     'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -53,7 +52,6 @@ INSTALLED_APPS = [
 
     'django_apscheduler',
     'taggit',
-    'django_seed',
 ]
 
 # 웹사이트 복수 생성시 사이트 지정을 위해 필요
@@ -75,7 +73,6 @@ JWT_AUTH_COOKIE = 'jwt_token'
 JTW_AUTH_REFRESH_COOKIE = 'jwt_refresh_token'
 
 MIDDLEWARE = [
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -85,9 +82,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-INTERNAL_IPS = [
-    '127.0.0.1',
-]
+
 
 ROOT_URLCONF = 'config.urls'
 
@@ -244,7 +239,7 @@ JWT_AUTH = {
 BASE_URL = os.environ.get("BASE_URL")
 FRONT_BASE_URL = os.environ.get("FRONT_BASE_URL")
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOWED_ORIGINS = [
     BASE_URL,
