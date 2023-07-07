@@ -331,9 +331,9 @@ class KakaoCallbackView(APIView):
             social_user = SocialAccount.objects.get(user=user)
 
             if social_user is None:
-                return JsonResponse({'err_msg': 'email exists but not social user'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(일반 회원가입 계정입니다.)'}, status=status.HTTP_400_BAD_REQUEST)
             if social_user.provider != 'kakao':
-                return JsonResponse({'err_msg': 'no matching social type'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'err_msg': '이미 가입된 회원정보가 있습니다.(다른 소셜 계정으로 가입하셨습니다.)'}, status=status.HTTP_400_BAD_REQUEST)
 
             # 기존에 kakao로 가입된 유저
             data = {"access_token": access_token, "code": code}
