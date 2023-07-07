@@ -2,7 +2,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework import serializers
 from .models import ShopProduct, ShopCategory, ShopImageFile, ShopOrder, ShopOrderDetail, RestockNotification
 import re
-from django.db.models import Count, Q
+from django.db.models import Sum
 
 
 class PostImageSerializer(serializers.ModelSerializer):
@@ -24,23 +24,11 @@ class ProductListSerializer(serializers.ModelSerializer):
     )
     category_name = serializers.CharField(
         source="category.category_name", read_only=True)
-    sold_stock = serializers.SerializerMethodField()
 
     class Meta:
         model = ShopProduct
         fields = ['id', 'product_name', 'product_price', 'product_stock',
-                        'product_desc', 'product_date', 'category', 'images', 'uploaded_images', 'hits', 'category_name', 'sold_out', 'sold_stock']
-
-    def get_sold_stock(self, obj):
-        return obj.product_stock - obj.product_set.filter(order_detail_status=0).count()
-
-    def get(self, instance):
-        request = self.context.get('request')
-
-        if instance.sold_out and not request.user.is_amdin:
-            raise serializers.ValidationError('해당 상품은 현재 품절되었습니다.')
-
-        return super().get(instance)
+                        'product_desc', 'product_date', 'category', 'images', 'uploaded_images', 'category_name', 'sold_out']
 
     def validate_product_price(self, value):
         try:
@@ -65,6 +53,52 @@ class ProductListSerializer(serializers.ModelSerializer):
             ShopImageFile.objects.create(image_file=images, product=product)
 
         return product
+
+
+class ProductDetailSerializer(serializers.ModelSerializer):
+    '''
+    작성자:장소은
+    내용: 상품 상세 조회 및 수정,삭제 시 필요한 Serializer 클래스
+    작성일: 2023.06.07
+    업데이트일: 2023.06.21
+    '''
+    images = PostImageSerializer(many=True, read_only=True)
+    uploaded_images = serializers.ListField(child=serializers.ImageField(
+        max_length=1000000, allow_empty_file=False, use_url=False), write_only=True
+    )
+    category_name = serializers.CharField(
+        source="category.category_name", read_only=True)
+    sold_stock = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ShopProduct
+        fields = ['id', 'product_name', 'product_price', 'product_stock',
+                        'product_desc', 'product_date', 'category', 'images', 'uploaded_images', 'hits', 'category_name', 'sold_out', 'sold_stock']
+
+    def get_sold_stock(self, obj):
+        sold_count = obj.product_set.aggregate(total_sold=Sum('product_count'))[
+            'total_sold'] or 0
+        return sold_count
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        instance = getattr(self, 'instance', None)
+
+        if instance.sold_out and not request.user.is_amdin:
+            raise serializers.ValidationError('해당 상품은 현재 품절되었습니다.')
+
+        return attrs
+
+    def validate_product_price(self, value):
+        try:
+            price = value
+            if price <= 0:
+                raise serializers.ValidationError(
+                    '상품 가격은 양의 실수이어야 합니다.')
+        except ValueError:
+            raise serializers.ValidationError('상품 가격은 숫자여야 합니다.')
+
+        return price
 
     def update(self, instance, validated_data):
         uploaded_images = validated_data.pop('uploaded_images', [])

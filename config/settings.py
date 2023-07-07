@@ -53,6 +53,7 @@ INSTALLED_APPS = [
 
     'django_apscheduler',
     'taggit',
+    'django_seed',
 ]
 
 # 웹사이트 복수 생성시 사이트 지정을 위해 필요

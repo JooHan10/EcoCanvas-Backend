@@ -31,6 +31,8 @@ websocket-client = "^1.6.0"
 django-debug-toolbar = "^4.1.0"
 pycryptodome = "^3.18.0"
 django-taggit = "^4.0.0"
+django-seed = "^0.3.1"
+psycopg2 = "^2.9.6"
 
 
 [build-system]
