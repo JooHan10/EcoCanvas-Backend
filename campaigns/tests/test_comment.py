@@ -37,6 +37,7 @@ class CampaignCommentCreateReadTest(APITestCase):
     최초 작성일 : 2023.06.09
     업데이트 일자 : 2023.06.30
     """
+
     @classmethod
     def setUpTestData(cls):
         cls.user_data = {
@@ -45,7 +46,7 @@ class CampaignCommentCreateReadTest(APITestCase):
             "password": "Qwerasdf1234!",
         }
 
-        file_path = get_dummy_path('dummy_data.json')
+        file_path = get_dummy_path("dummy_data.json")
         with open(file_path, encoding="utf-8") as test_json:
             test_dict = json.load(test_json)
             cls.campaign_data = test_dict
@@ -58,14 +59,10 @@ class CampaignCommentCreateReadTest(APITestCase):
         cls.campaign_data["image"] = image_file.name
 
         cls.user = User.objects.create_user(**cls.user_data)
-
         cls.campaign_data["user"] = cls.user
         
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
-
-        cls.comment_data = {
-            "content": "좋은 캠페인이네요"
-        }
+        cls.comment_data = {"content": "좋은 캠페인이네요"}
 
     def setUp(self):
         self.access_token = self.client.post(reverse("log_in"), self.user_data).data[
@@ -135,6 +132,7 @@ class CampaignCommentUpdateDeleteTest(APITestCase):
     최초 작성일 : 2023.06.09
     업데이트 일자 : 2023.06.30
     """
+
     @classmethod
     def setUpTestData(cls):
         cls.user_data = {
@@ -142,7 +140,7 @@ class CampaignCommentUpdateDeleteTest(APITestCase):
             "username": "John",
             "password": "Qwerasdf1234!",
         }
-        file_path = get_dummy_path('dummy_data.json')
+        file_path = get_dummy_path("dummy_data.json")
         with open(file_path, encoding="utf-8") as test_json:
             test_dict = json.load(test_json)
             cls.campaign_data = test_dict
@@ -159,14 +157,10 @@ class CampaignCommentUpdateDeleteTest(APITestCase):
         cls.campaign_data["user"] = cls.user
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
-        cls.comment_data = {
-            "content": "좋은 캠페인이네요"
-        }
-        cls.new_comment_data = {
-            "content": "좋은 캠페인이네요. 꼭 참여하고 싶습니다!"
-        }
-        cls.comment_data['user'] = cls.user
-        cls.comment_data['campaign'] = cls.campaign
+        cls.comment_data = {"content": "좋은 캠페인이네요"}
+        cls.new_comment_data = {"content": "좋은 캠페인이네요. 꼭 참여하고 싶습니다!"}
+        cls.comment_data["user"] = cls.user
+        cls.comment_data["campaign"] = cls.campaign
         cls.comment = CampaignComment.objects.create(**cls.comment_data)
 
     def setUp(self):
@@ -178,7 +172,7 @@ class CampaignCommentUpdateDeleteTest(APITestCase):
         """
         캠페인 댓글 PUT 요청 테스트함수입니다.
         """
-        comment = CampaignComment.objects.get(content=self.comment_data['content'])
+        comment = CampaignComment.objects.get(content=self.comment_data["content"])
         url = comment.get_absolute_url()
         response = self.client.put(
             path=url,
@@ -191,7 +185,7 @@ class CampaignCommentUpdateDeleteTest(APITestCase):
         """
         캠페인 댓글 DELETE 요청 테스트함수입니다.
         """
-        comment = CampaignComment.objects.get(content=self.comment_data['content'])
+        comment = CampaignComment.objects.get(content=self.comment_data["content"])
         url = comment.get_absolute_url()
         response = self.client.delete(
             path=url,

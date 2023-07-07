@@ -38,6 +38,7 @@ class CampaignReviewCreateReadTest(APITestCase):
     최초 작성일 : 2023.06.09
     업데이트 일자 : 2023.06.30
     """
+
     @classmethod
     def setUpTestData(cls):
         cls.user_data = {
@@ -46,7 +47,7 @@ class CampaignReviewCreateReadTest(APITestCase):
             "password": "Qwerasdf1234!",
         }
 
-        file_path = get_dummy_path('dummy_data.json')
+        file_path = get_dummy_path("dummy_data.json")
         with open(file_path, encoding="utf-8") as test_json:
             test_dict = json.load(test_json)
             cls.campaign_data = test_dict
@@ -60,14 +61,10 @@ class CampaignReviewCreateReadTest(APITestCase):
         cls.campaign_data["image"] = image_file.name
 
         cls.user = User.objects.create_user(**cls.user_data)
-
-        cls.campaign_data['user'] = cls.user
+        cls.campaign_data["user"] = cls.user
+        
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
-        cls.review_data = {
-            "title": "탄소발자국 캠페인 모집 후기",
-            "content": "보람찼다",
-            "image": ""
-        }
+        cls.review_data = {"title": "탄소발자국 캠페인 모집 후기", "content": "보람찼다", "image": ""}
 
     def setUp(self):
         self.access_token = self.client.post(reverse("log_in"), self.user_data).data[
@@ -107,7 +104,7 @@ class CampaignReviewCreateReadTest(APITestCase):
         self.assertEqual(response.status_code, 403)
         response_data = response.json()
         self.assertEqual(response_data["message"], "완료된 캠페인에만 후기를 작성할 수 있습니다.")
-    
+
     def test_create_campaign_review_without_login(self):
         """
         로그인하지 않은 사용자가 캠페인 후기 작성 시도 시 실패하는 테스트 함수입니다.
@@ -138,6 +135,7 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
     최초 작성일 : 2023.06.09
     업데이트 일자 : 2023.06.30
     """
+
     @classmethod
     def setUpTestData(cls):
         cls.user_data = {
@@ -145,7 +143,7 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
             "username": "John",
             "password": "Qwerasdf1234!",
         }
-        file_path = get_dummy_path('dummy_data.json')
+        file_path = get_dummy_path("dummy_data.json")
         with open(file_path, encoding="utf-8") as test_json:
             test_dict = json.load(test_json)
             cls.campaign_data = test_dict
@@ -159,7 +157,7 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
 
         cls.user = User.objects.create_user(**cls.user_data)
 
-        cls.campaign_data['user'] = cls.user
+        cls.campaign_data["user"] = cls.user
         cls.campaign = Campaign.objects.create(**cls.campaign_data)
 
         cls.review_data = {
@@ -173,8 +171,8 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
                 작고 사소한 일이지만 탄소배출 감소에 이바지했다고 생각하니 뿌듯했습니다.",
             "image": "",
         }
-        cls.review_data['user'] = cls.user
-        cls.review_data['campaign'] = cls.campaign
+        cls.review_data["user"] = cls.user
+        cls.review_data["campaign"] = cls.campaign
         cls.review = CampaignReview.objects.create(**cls.review_data)
 
     def setUp(self):
@@ -186,7 +184,7 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
         """
         캠페인 후기 PUT 요청 테스트함수입니다.
         """
-        review = CampaignReview.objects.get(title=self.review_data['title'])
+        review = CampaignReview.objects.get(title=self.review_data["title"])
         url = review.get_absolute_url()
         response = self.client.put(
             path=url,
@@ -199,7 +197,7 @@ class CampaignReviewUpdateDeleteTest(APITestCase):
         """
         캠페인 후기 DELETE 요청 테스트함수입니다.
         """
-        review = CampaignReview.objects.get(title=self.review_data['title'])
+        review = CampaignReview.objects.get(title=self.review_data["title"])
         url = review.get_absolute_url()
         response = self.client.delete(
             path=url,

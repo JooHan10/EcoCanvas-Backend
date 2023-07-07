@@ -6,12 +6,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count, F
 from django.utils import timezone
-from campaigns.models import (
-    Campaign,
-    CampaignComment,
-    CampaignReview,
-    Participant
-)
+from campaigns.models import Campaign, CampaignComment, CampaignReview, Participant
 from campaigns.serializers import (
     CampaignSerializer,
     CampaignListSerializer,
@@ -21,7 +16,7 @@ from campaigns.serializers import (
     CampaignCommentSerializer,
     CampaignCommentCreateSerializer,
     FundingCreateSerializer,
-    MyCampaingSerializer
+    MyCampaingSerializer,
 )
 
 
@@ -38,10 +33,8 @@ class CampaignView(APIView):
 
     def get(self, request):
         """
-        Query parameter에 대해 페이지네이션이 적용된 캠페인 목록을 Response하는 함수입니다.
-        Parameter : end, order, keyword, category
+        Query String에 대해 페이지네이션이 적용된 캠페인 목록을 Response하는 GET함수입니다.
         """
-
         queryset = (
             Campaign.objects.select_related("user")
             .select_related("fundings")
@@ -62,34 +55,34 @@ class CampaignView(APIView):
                 & Q(campaign_start_date__lte=timezone.now())
                 & Q(campaign_end_date__gte=timezone.now())
             ),
-            "Y": queryset.filter(status__gte=2)
+            "Y": queryset.filter(status__gte=2),
         }
         queryset = end_dict.get(end, queryset.filter(status__gte=1))
 
-        order_dict = {
-            "recent": queryset.order_by("-created_at"),
-            "closing": queryset.order_by("campaign_end_date"),
-            "popular": queryset.annotate(participant_count=Count("participant")).order_by("-participant_count"),
-            "like": queryset.annotate(like_count=Count("like")).order_by("-like_count"),
-            "amount": queryset.order_by("-fundings__amount"),
-        }
-        queryset = order_dict[order]
-
         if keyword:
             queryset = queryset.filter(
-                Q(title__icontains=keyword) |
-                Q(content__icontains=keyword) |
-                Q(tags__name__icontains=keyword) |
-                Q(user__username__icontains=keyword)
+                Q(title__icontains=keyword)
+                | Q(content__icontains=keyword)
+                | Q(tags__name__icontains=keyword)
+                | Q(user__username__icontains=keyword)
             ).distinct()
 
         if category:
             queryset = queryset.filter(category=category)
 
+        order_dict = {
+            "recent": queryset.order_by("-created_at"),
+            "closing": queryset.order_by("campaign_end_date"),
+            "popular": queryset.annotate(
+                participant_count=Count("participant")
+            ).order_by("-participant_count"),
+            "like": queryset.annotate(like_count=Count("like")).order_by("-like_count"),
+            "amount": queryset.order_by("-fundings__amount"),
+        }
+        queryset = order_dict[order]
 
         pagination_instance = self.pagination_class()
-        paginated_data = pagination_instance.paginate_queryset(
-            queryset, request)
+        paginated_data = pagination_instance.paginate_queryset(queryset, request)
         serializer = CampaignListSerializer(paginated_data, many=True)
         return pagination_instance.get_paginated_response(serializer.data)
 
@@ -146,9 +139,7 @@ class TagFilterView(ListAPIView):
 
     def get_queryset(self):
         tag = self.request.query_params.get("name", None)
-
         queryset = Campaign.objects.filter(tags__name__in=[tag])
-
         return queryset
 
 
@@ -167,7 +158,6 @@ class CampaignDetailView(APIView):
         """
         campaing_id를 Parameter로 받아 해당하는 캠페인에 GET 요청을 보내는 함수입니다.
         """
-
         queryset = get_object_or_404(Campaign, id=campaign_id)
         serializer = CampaignSerializer(queryset)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -190,7 +180,8 @@ class CampaignDetailView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if request.user == queryset.user:
             serializer = CampaignCreateSerializer(
-                queryset, data=request.data, partial=True)
+                queryset, data=request.data, partial=True
+            )
             if serializer.is_valid():
                 serializer.save()
                 return Response(
@@ -215,9 +206,11 @@ class CampaignDetailView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if request.user == queryset.user:
             campaign_serializer = CampaignCreateSerializer(
-                queryset, data=request.data, partial=True)
+                queryset, data=request.data, partial=True
+            )
             funding_serializer = FundingCreateSerializer(
-                data=request.data, partial=True)
+                data=request.data, partial=True
+            )
 
             campaign_serializer.is_valid(raise_exception=True)
             funding_serializer.is_valid(raise_exception=True)
@@ -272,8 +265,11 @@ class CampaignLikeView(APIView):
         queryset = get_object_or_404(Campaign, id=campaign_id)
 
         if queryset.status != 1:
-            return Response({"message": "진행중인 캠페인에만 좋아요 할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
-    
+            return Response(
+                {"message": "진행중인 캠페인에만 좋아요 할 수 있습니다."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if queryset.like.filter(id=request.user.id).exists():
             queryset.like.remove(request.user)
             is_liked = False
@@ -283,7 +279,9 @@ class CampaignLikeView(APIView):
             is_liked = True
             message = "좋아요 성공!"
 
-        return Response({"is_liked": is_liked, "message": message}, status=status.HTTP_200_OK)
+        return Response(
+            {"is_liked": is_liked, "message": message}, status=status.HTTP_200_OK
+        )
 
 
 class CampaignParticipationView(APIView):
@@ -299,14 +297,15 @@ class CampaignParticipationView(APIView):
 
     def get(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
-        is_participated = queryset.participant.filter(
-            id=request.user.id).exists()
+        is_participated = queryset.participant.filter(id=request.user.id).exists()
         return Response({"is_participated": is_participated}, status=status.HTTP_200_OK)
 
     def post(self, request, campaign_id: int):
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if queryset.status != 1:
-            return Response({"message": "진행중인 캠페인에만 참가할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"message": "진행중인 캠페인에만 참가할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN
+            )
 
         participant_count = queryset.participant.count()
         members = queryset.members
@@ -315,16 +314,14 @@ class CampaignParticipationView(APIView):
             queryset.participant.remove(request.user)
             is_participated = False
             message = "캠페인 참가 취소!"
-            participant = Participant.objects.get(
-                campaign=queryset,
-                user=request.user
-            )
+            participant = Participant.objects.get(campaign=queryset, user=request.user)
             participant.delete()
 
         else:
             if participant_count + 1 > members:
                 return Response(
-                    {"message": "캠페인 참가 정원을 초과하여 신청할 수 없습니다."}, status=status.HTTP_400_BAD_REQUEST
+                    {"message": "캠페인 참가 정원을 초과하여 신청할 수 없습니다."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             else:
                 queryset.participant.add(request.user)
@@ -332,13 +329,14 @@ class CampaignParticipationView(APIView):
                 message = "캠페인 참가 성공!"
 
                 participant = Participant.objects.create(
-                    user=request.user,
-                    campaign=queryset,
-                    is_participated=True
+                    user=request.user, campaign=queryset, is_participated=True
                 )
                 participant.save()
 
-        return Response({"is_participated": is_participated, "message": message}, status=status.HTTP_200_OK)
+        return Response(
+            {"is_participated": is_participated, "message": message},
+            status=status.HTTP_200_OK,
+        )
 
 
 class CampaignStatusChecker:
@@ -348,9 +346,10 @@ class CampaignStatusChecker:
     최초 작성일 : 2023.06.08
     업데이트 일자 : 2023.07.03
     """
+
     def check_campaign_status():
         """
-        status가 1인 캠페인 중 완료 날짜가 되거나 지난 캠페인의 
+        status가 1인 캠페인 중 완료 날짜가 되거나 지난 캠페인의
         status를 2로 바꿉니다.
         """
         now = timezone.now()
@@ -363,12 +362,11 @@ class CampaignStatusChecker:
 
     def check_funding_success():
         """
-        종료된 캠페인의 펀딩 성공여부를 판단해 펀딩에 실패한 캠페인의 
+        종료된 캠페인의 펀딩 성공여부를 판단해 펀딩에 실패한 캠페인의
         status를 3으로 바꿉니다.
         """
         campaigns = Campaign.objects.filter(
-            Q(status=2) &
-            Q(fundings__amount__lt=F("fundings__goal"))
+            Q(status=2) & Q(fundings__amount__lt=F("fundings__goal"))
         )
 
         for campaign in campaigns:
@@ -382,6 +380,7 @@ class ReviewCommentPagination(PageNumberPagination):
     내용 : 후기, 댓글 페이지네이션 클래스입니다.
     작성일: 2023.06.25
     """
+
     page_size = 5
     page_size_query_param = "page_size"
 
@@ -406,8 +405,7 @@ class CampaignReviewView(APIView):
         review = queryset.reviews.select_related("user").all().order_by("-created_at")
 
         pagination_instance = self.pagination_class()
-        paginated_data = pagination_instance.paginate_queryset(
-            review, request)
+        paginated_data = pagination_instance.paginate_queryset(review, request)
         serializer = CampaignReviewSerializer(paginated_data, many=True)
         return pagination_instance.get_paginated_response(serializer.data)
 
@@ -425,7 +423,10 @@ class CampaignReviewView(APIView):
                 status=status.HTTP_201_CREATED,
             )
         else:
-            return Response({"message": "완료된 캠페인에만 후기를 작성할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"message": "완료된 캠페인에만 후기를 작성할 수 있습니다."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
     def put(self, request, review_id: int):
         """
@@ -433,8 +434,7 @@ class CampaignReviewView(APIView):
         """
         queryset = get_object_or_404(CampaignReview, id=review_id)
         if request.user == queryset.user:
-            serializer = CampaignReviewCreateSerializer(
-                queryset, data=request.data)
+            serializer = CampaignReviewCreateSerializer(queryset, data=request.data)
             if serializer.is_valid():
                 serializer.save()
                 return Response(
@@ -493,8 +493,7 @@ class CampaignCommentView(APIView):
             comment = comment.order_by("created_at")
 
         pagination_instance = self.pagination_class()
-        paginated_data = pagination_instance.paginate_queryset(
-            comment, request)
+        paginated_data = pagination_instance.paginate_queryset(comment, request)
         serializer = CampaignCommentSerializer(paginated_data, many=True)
         return pagination_instance.get_paginated_response(serializer.data)
 
@@ -504,7 +503,10 @@ class CampaignCommentView(APIView):
         """
         queryset = get_object_or_404(Campaign, id=campaign_id)
         if queryset.status == 0:
-            return Response({"message": "미승인 캠페인에는 댓글을 작성할 수 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"message": "미승인 캠페인에는 댓글을 작성할 수 없습니다."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         serializer = CampaignCommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -520,8 +522,7 @@ class CampaignCommentView(APIView):
         """
         queryset = get_object_or_404(CampaignComment, id=comment_id)
         if request.user == queryset.user:
-            serializer = CampaignCommentCreateSerializer(
-                queryset, data=request.data)
+            serializer = CampaignCommentCreateSerializer(queryset, data=request.data)
             if serializer.is_valid():
                 serializer.save()
                 return Response(
