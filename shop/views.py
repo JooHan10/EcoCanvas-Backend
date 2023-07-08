@@ -14,7 +14,8 @@ from .serializers import (
     CategoryListSerializer,
     OrderProductSerializer,
     OrderListSerializer,
-    OrderDetailSerializer
+    OrderDetailSerializer,
+    ProductDetailSerializer
 )
 from config.permissions import IsAdminUserOrReadonly
 from rest_framework.pagination import PageNumberPagination
@@ -42,7 +43,7 @@ class ProductListViewAPI(APIView):
     작성자:장소은
     내용: 전체 상품 목록 쿼리 매개변수 통해 조건별 정렬 및 검색 조회 API
     작성일: 2023.06.16
-    업데이트 일: 2023.06.20
+    업데이트 일: 2023.07.07
     '''
     pagination_class = CustomPagination
 
@@ -50,24 +51,27 @@ class ProductListViewAPI(APIView):
         sort_by = request.GET.get('sort_by')
         search_query = request.GET.get('search_query')
 
-        products = ShopProduct.objects.all()
-
-        # 정렬 처리
-        if sort_by == 'hits':
-            products = ShopProduct.objects.all().order_by('-hits')
-        elif sort_by == 'latest':
-            products = ShopProduct.objects.all().order_by('-product_date')
-        elif sort_by == 'high_price':
-            products = ShopProduct.objects.all().order_by('-product_price')
-        elif sort_by == 'low_price':
-            products = ShopProduct.objects.all().order_by('product_price')
+        products = ShopProduct.objects.select_related('category').prefetch_related(
+            'images')
 
         # 검색 처리
         if search_query:
             products = products.filter(
                 Q(product_name__icontains=search_query) |
                 Q(product_desc__icontains=search_query)
-            )
+            ).order_by(sort_by)
+
+        # # 정렬 처리
+        if sort_by == 'hits':
+            products = products.order_by('-hits')
+        elif sort_by == 'latest':
+            products = products.order_by('-product_date')
+        elif sort_by == 'high_price':
+            products = products.order_by('-product_price')
+        elif sort_by == 'low_price':
+            products = products.order_by('product_price')
+        else:
+            products = products.order_by('-id')
 
         # 페이지네이션 처리
         paginator = self.pagination_class()
@@ -82,7 +86,7 @@ class ProductCategoryListViewAPI(APIView):
     작성자:장소은
     내용: 카테고리별 상품목록 정렬 및 검색 조회(조회순/높은금액/낮은금액/최신순) (일반,관리자) / 상품 등록(관리자)
     작성일: 2023.06.06
-    업데이트일: 2023.06.120
+    업데이트일: 2023.07.07
     '''
     permission_classes = [IsAdminUserOrReadonly]
     pagination_class = CustomPagination
@@ -93,17 +97,20 @@ class ProductCategoryListViewAPI(APIView):
         sort_by = request.GET.get('sort_by')
         search_query = request.GET.get('search_query')
 
-        products = ShopProduct.objects.filter(category_id=category.id)
+        products = ShopProduct.objects.filter(
+            category_id=category.id).select_related('category').prefetch_related('images')
 
         # 정렬 처리
         if sort_by == 'hits':
             products = products.order_by('-hits')
+        elif sort_by == 'latest':
+            products = products.order_by('-product_date')
         elif sort_by == 'high_price':
             products = products.order_by('-product_price')
         elif sort_by == 'low_price':
             products = products.order_by('product_price')
         else:
-            products = products.order_by('-product_date')
+            products = products.order_by('-id')
 
         # 검색 처리
         if search_query:
@@ -111,11 +118,11 @@ class ProductCategoryListViewAPI(APIView):
                 Q(product_name__icontains=search_query) |
                 Q(product_desc__icontains=search_query)
             )
-
         # 페이지네이션 처리
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(products, request)
-        serializer = ProductListSerializer(result_page, many=True)
+        serializer = ProductListSerializer(
+            result_page, many=True, context={'request': request})
 
         return paginator.get_paginated_response(serializer.data)
 
@@ -153,7 +160,7 @@ class ProductDetailViewAPI(APIView):
         cache.set(f"viewed_products_{session_key}",
                   viewed_products, timeout=86400)
 
-        serializer = ProductListSerializer(product)
+        serializer = ProductDetailSerializer(product)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, product_id):
@@ -161,7 +168,7 @@ class ProductDetailViewAPI(APIView):
             return Response({"message": "관리자만 수정할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
 
         product = get_object_or_404(ShopProduct, id=product_id)
-        serializer = ProductListSerializer(
+        serializer = ProductDetailSerializer(
             product, data=request.data, partial=True)
 
         if serializer.is_valid(raise_exception=True):
@@ -190,7 +197,8 @@ class AdminProductViewAPI(APIView):
     permission_classes = [IsAdminUserOrReadonly]
 
     def get(self, request):
-        products = ShopProduct.objects.all().order_by('-product_date')
+        products = ShopProduct.objects.select_related(
+            'category').prefetch_related('images').order_by('-product_date')
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(products, request)
         serializer = ProductListSerializer(result_page, many=True)
