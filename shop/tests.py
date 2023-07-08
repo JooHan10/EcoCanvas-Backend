@@ -148,7 +148,8 @@ class ProductListViewAPITest(APITestCase):
 
     def test_search_query(self):
         search_query = '에코백'
-        response = self.client.get(self.url, {'search_query': search_query})
+        response = self.client.get(
+            self.url, {'search_query': search_query, 'sort_by': 'product_date'})
         self.assertEqual(response.status_code, 200)
 
 
@@ -159,7 +160,7 @@ class ProductUpdateTest(APITestCase):
     작성일 : 2023.06.23
     '''
 
-    @classmethod
+    @ classmethod
     def setUpTestData(cls):
         cls.admin = User.objects.create_superuser(
             email="adminuser@test.com", username="관리자소은", password="Xptmxm123@456")
@@ -217,7 +218,7 @@ class ProductUpdateTest(APITestCase):
 
     def test_user_product_put(self):
         '''
-        권한이 없는 일반유저가 PUT할 때 테스트 
+        권한이 없는 일반유저가 PUT할 때 테스트
         '''
         response = self.client.put(
             self.url,
@@ -228,7 +229,7 @@ class ProductUpdateTest(APITestCase):
 
     def test_admin_product_put(self):
         '''
-        관리자가 PUT할 때 테스트 
+        관리자가 PUT할 때 테스트
         '''
         response = self.client.put(
             self.url,
@@ -239,7 +240,7 @@ class ProductUpdateTest(APITestCase):
 
     def test_admin_product_delete(self):
         '''
-        관리자가 DELETE할 때 테스트 
+        관리자가 DELETE할 때 테스트
         '''
         response = self.client.delete(
             self.url,
@@ -252,7 +253,7 @@ class ProductRestockNotificatinonTest(APITestCase):
     '''
     내용 : 재입고 알림 신청
     '''
-    @classmethod
+    @ classmethod
     def setUpTestData(cls):
         cls.admin = User.objects.create_superuser(
             email="adminuser@test.com", username="관리자소은", password="Xptmxm123@456")
@@ -295,7 +296,7 @@ class ProductRestockNotificatinonTest(APITestCase):
             **cls.product_data)
 
         cls.url = reverse('restock_notification_view', kwargs={
-                          "product_id": cls.product.id})
+            "product_id": cls.product.id})
 
     def setUp(self):
         self.access_token = self.client.post(
@@ -313,7 +314,7 @@ class ProductRestockNotificatinonTest(APITestCase):
 
     def test_already_restock_notification(self):
         '''
-        상품 재입고 알림을 이미 구독 중인 경우의 테스트 
+        상품 재입고 알림을 이미 구독 중인 경우의 테스트
         '''
         RestockNotification.objects.create(
             product=self.product, user=self.user)
