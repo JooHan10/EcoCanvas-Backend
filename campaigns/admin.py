@@ -5,7 +5,7 @@ from campaigns.models import (
     CampaignComment,
     CampaignReview,
     Funding,
-    Participant
+    Participant,
 )
 
 
@@ -58,19 +58,18 @@ class CampaignDisplay(admin.ModelAdmin):
     ]
     search_fields = [
         "title",
-        "user",
         "content",
     ]
 
     def image_tag(self, campaign):
         if campaign.image:
             return mark_safe(f'<img src="{campaign.image.url}" style="width:50px;" />')
-        
+
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('tags')
+        return super().get_queryset(request).prefetch_related("tags")
 
     def tag_list(self, obj):
-        return u", ".join(o.name for o in obj.tags.all())
+        return ", ".join(o.name for o in obj.tags.all())
 
 
 @admin.register(Funding)
@@ -123,11 +122,11 @@ class CampaignReviewDisplay(admin.ModelAdmin):
     """
 
     list_display = [
+        "title",
+        "content",
         "user",
         "campaign",
         "image_tag",
-        "title",
-        "content",
         "created_at",
         "updated_at",
     ]
@@ -167,9 +166,9 @@ class CampaignCommentDisplay(admin.ModelAdmin):
     """
 
     list_display = [
+        "content",
         "user",
         "campaign",
-        "content",
         "created_at",
         "updated_at",
     ]
