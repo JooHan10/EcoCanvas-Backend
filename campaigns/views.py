@@ -38,10 +38,7 @@ class CampaignView(APIView):
         queryset = (
             Campaign.objects.select_related("user")
             .select_related("fundings")
-            .prefetch_related("like")
             .prefetch_related("participant")
-            .prefetch_related("tags")
-            .all()
         )
 
         end = self.request.query_params.get("end", None)
