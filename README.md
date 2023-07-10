@@ -1,5 +1,5 @@
 <div align=center>
-  <img width="300" alt="image" src="https://github.com/nueeng/EcoCanvas-Backend/assets/127704498/30303c20-4f89-492a-82e6-075ad82a9c51">
+  <img width="300" alt="image" src="https://github.com/Songjimyung/EcoCanvas-Backend/assets/127704498/a18b12f5-9b05-4cc6-b33d-581fe0afc3b6">
 </div>
 
 ## 목차
